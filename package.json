@@ -1,12 +1,14 @@
 {
   "name": "claude-context-api",
   "private": true,
+  "version": "0.1.0",
   "module": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
+    "@elysiajs/openapi": "^1.4.11",
     "@zilliz/claude-context-core": "^0.1.3",
     "elysia": "latest",
     "winston": "^3.16.0"

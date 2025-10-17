@@ -7,11 +7,11 @@ import {
 import { logger } from "./logger";
 import {
   ConfigService,
-  ContextConfig,
-  IgnoredPatterns,
+  type ContextConfig,
+  type IgnoredPatterns,
 } from "./services/config.service";
 
-export { ContextConfig, IgnoredPatterns };
+export { type ContextConfig, type IgnoredPatterns };
 
 export async function getConfig(): Promise<ContextConfig> {
   return await ConfigService.loadConfig();

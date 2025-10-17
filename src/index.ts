@@ -4,6 +4,7 @@ import { indexRoutes } from "./routes/index";
 import { searchRoutes } from "./routes/search";
 import { configRoutes } from "./routes/config";
 import { ignoredRoutes } from "./routes/ignored";
+import openapi from "@elysiajs/openapi";
 
 const statusRoutes = new Elysia({ prefix: "/api/status" }).get(
   "/",
@@ -19,8 +20,10 @@ const statusRoutes = new Elysia({ prefix: "/api/status" }).get(
   },
 );
 
-// Main app
-const app = new Elysia()
+const app = new Elysia({
+  name: "Claude Context API",
+})
+  .use(openapi())
   .use(statusRoutes)
   .use(indexRoutes)
   .use(searchRoutes)

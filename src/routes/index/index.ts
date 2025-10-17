@@ -2,7 +2,11 @@ import { Elysia, t } from "elysia";
 import { getContext } from "../../context";
 import { logger } from "../../logger";
 
-export const indexRoutes = new Elysia({ prefix: "/api/index" })
+export const indexRoutes = new Elysia({
+  prefix: "/api/index",
+  tags: ["indexing"],
+  name: "Indexing",
+})
   .post(
     "/",
     async ({ body }) => {
@@ -143,4 +147,3 @@ export const indexRoutes = new Elysia({ prefix: "/api/index" })
       error: errorMessage,
     };
   });
-

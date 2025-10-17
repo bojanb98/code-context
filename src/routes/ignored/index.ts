@@ -2,7 +2,11 @@ import { Elysia, t } from "elysia";
 import { IgnoredFilesService } from "../../services/ignored-files.service";
 import { logger } from "../../logger";
 
-export const ignoredRoutes = new Elysia({ prefix: "/api/ignored" })
+export const ignoredRoutes = new Elysia({
+  prefix: "/api/ignored",
+  tags: ["ignore"],
+  name: "Ignore",
+})
   .post(
     "/",
     async ({ body }: { body: { path: string; pattern: string } }) => {
@@ -100,7 +104,8 @@ export const ignoredRoutes = new Elysia({ prefix: "/api/ignored" })
     },
   )
   .onError(({ error, code }) => {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     logger.error(`Ignored routes error: ${errorMessage}`);
 
     if (code === "VALIDATION") {
@@ -114,3 +119,4 @@ export const ignoredRoutes = new Elysia({ prefix: "/api/ignored" })
       error: errorMessage,
     };
   });
+
