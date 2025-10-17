@@ -5,7 +5,6 @@ import { searchRoutes } from "./routes/search";
 import { configRoutes } from "./routes/config";
 import { ignoredRoutes } from "./routes/ignored";
 
-// Health check routes
 const statusRoutes = new Elysia({ prefix: "/api/status" }).get(
   "/",
   () => ({
@@ -28,7 +27,8 @@ const app = new Elysia()
   .use(configRoutes)
   .use(ignoredRoutes)
   .onError(({ error, code }) => {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     logger.error(`Request error: ${errorMessage}`);
     if (code === "VALIDATION") {
       return {

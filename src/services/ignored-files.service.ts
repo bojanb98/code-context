@@ -2,9 +2,6 @@ import { getIgnoredPatterns, saveIgnoredPatterns } from "../context";
 import { logger } from "../logger";
 
 export class IgnoredFilesService {
-  /**
-   * Add an ignored pattern to a project
-   */
   static async addPattern(
     path: string,
     pattern: string,

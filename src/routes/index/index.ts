@@ -128,7 +128,8 @@ export const indexRoutes = new Elysia({ prefix: "/api/index" })
     },
   )
   .onError(({ error, code }) => {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     logger.error(`Index routes error: ${errorMessage}`);
 
     if (code === "VALIDATION") {
@@ -142,3 +143,4 @@ export const indexRoutes = new Elysia({ prefix: "/api/index" })
       error: errorMessage,
     };
   });
+

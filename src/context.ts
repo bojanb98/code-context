@@ -5,7 +5,11 @@ import {
   MilvusVectorDatabase,
 } from "@zilliz/claude-context-core";
 import { logger } from "./logger";
-import { ConfigService, ContextConfig, IgnoredPatterns } from "./services/config.service";
+import {
+  ConfigService,
+  ContextConfig,
+  IgnoredPatterns,
+} from "./services/config.service";
 
 export { ContextConfig, IgnoredPatterns };
 
@@ -13,7 +17,9 @@ export async function getConfig(): Promise<ContextConfig> {
   return await ConfigService.loadConfig();
 }
 
-export async function saveConfig(config: ContextConfig): Promise<ContextConfig> {
+export async function saveConfig(
+  config: ContextConfig,
+): Promise<ContextConfig> {
   return await ConfigService.saveConfig(config);
 }
 

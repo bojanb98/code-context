@@ -5,7 +5,7 @@ import { logger } from "../../logger";
 export const ignoredRoutes = new Elysia({ prefix: "/api/ignored" })
   .post(
     "/",
-    async ({ body }) => {
+    async ({ body }: { body: { path: string; pattern: string } }) => {
       return await IgnoredFilesService.addPattern(body.path, body.pattern);
     },
     {
@@ -79,7 +79,7 @@ export const ignoredRoutes = new Elysia({ prefix: "/api/ignored" })
   )
   .delete(
     "/",
-    async ({ body }) => {
+    async ({ body }: { body: { path: string; pattern: string } }) => {
       return await IgnoredFilesService.removePattern(body.path, body.pattern);
     },
     {
