@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/claude-code-extensions/cli/internal/http"
+	"github.com/claude-code-extensions/cli/internal/path"
 	"github.com/spf13/cobra"
 )
 
@@ -16,11 +17,17 @@ var indexCmd = &cobra.Command{
 }
 
 func runIndex(cmd *cobra.Command, args []string) error {
-	path := args[0]
+	pathArg := args[0]
+
+	absPath, err := path.ToAbsolute(pathArg)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+
 	client := http.NewClient()
 
 	request := http.IndexPathRequest{
-		Path: http.EscapePath(path),
+		Path: http.EscapePath(absPath),
 	}
 
 	response, err := client.Post("/api/index/", request)

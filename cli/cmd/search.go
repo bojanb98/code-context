@@ -6,6 +6,7 @@ import (
 
 	"github.com/claude-code-extensions/cli/internal/format"
 	"github.com/claude-code-extensions/cli/internal/http"
+	"github.com/claude-code-extensions/cli/internal/path"
 	"github.com/spf13/cobra"
 )
 
@@ -18,8 +19,13 @@ var searchCmd = &cobra.Command{
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
-	path := args[0]
+	pathArg := args[0]
 	query := args[1]
+
+	absPath, err := path.ToAbsolute(pathArg)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
 
 	limit := 5
 	if len(args) >= 3 {
@@ -38,7 +44,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	client := http.NewClient()
 
 	params := map[string]string{
-		"path":  path,
+		"path":  absPath,
 		"query": query,
 		"limit": strconv.Itoa(limit),
 	}
