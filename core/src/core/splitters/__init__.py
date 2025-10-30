@@ -1,5 +1,3 @@
-"""Code splitting modules."""
-
 from .base import Splitter
 from .tree_sitter import TreeSitterSplitter
 from .types import CodeChunk

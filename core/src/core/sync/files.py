@@ -6,6 +6,8 @@ from pathlib import Path
 
 from loguru import logger
 
+from core.splitters import SUPPORTED_EXTENSIONS
+
 from .merkle import MerkleDAG
 from .util import DEFAULT_IGNORE_PATTERNS
 
@@ -57,13 +59,11 @@ class FileSynchronizer:
         for entry in entries:
             relative_path = entry.relative_to(self.root_dir)
 
-            # Check if this path should be ignored
             if self._should_ignore(relative_path, entry.is_dir()):
                 continue
 
             try:
                 if entry.is_dir():
-                    # Recursively process subdirectories
                     sub_hashes = await self._generate_file_hashes(entry)
                     file_hashes.update(sub_hashes)
                 elif entry.is_file():
@@ -78,8 +78,10 @@ class FileSynchronizer:
         return file_hashes
 
     def _should_ignore(self, relative_path: Path, is_directory: bool = False) -> bool:
-        # Always ignore hidden files and directories
         if any(part.startswith(".") for part in relative_path.parts):
+            return True
+
+        if not is_directory and relative_path.suffix not in SUPPORTED_EXTENSIONS:
             return True
 
         if not self.ignore_patterns:

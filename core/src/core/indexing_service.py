@@ -6,7 +6,7 @@ from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from .qdrant import QdrantVectorDatabase
 from .qdrant.types import VectorDocument
-from .splitters import SUPPORTED_EXTENSIONS, TreeSitterSplitter
+from .splitters import TreeSitterSplitter
 from .sync import FileSynchronizer, SynchronizerConfig
 from .utils import get_collection_name
 
