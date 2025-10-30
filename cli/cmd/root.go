@@ -19,6 +19,5 @@ func init() {
 	rootCmd.AddCommand(indexCmd)
 	rootCmd.AddCommand(reindexCmd)
 	rootCmd.AddCommand(searchCmd)
-	rootCmd.AddCommand(searchCwdCmd)
 	rootCmd.AddCommand(unindexCmd)
 }
