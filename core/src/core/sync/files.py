@@ -1,7 +1,7 @@
 import hashlib
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from loguru import logger
@@ -15,14 +15,14 @@ from .util import DEFAULT_IGNORE_PATTERNS
 @dataclass
 class SynchronizerConfig:
     snapshot_dir: str
-    ignore_patterns: list[str] = []
+    ignore_patterns: list[str] = field(default_factory=list)
 
 
 @dataclass
 class DetectedChanges:
-    added: list[str] = []
-    modified: list[str] = []
-    removed: list[str] = []
+    added: list[str] = field(default_factory=list)
+    modified: list[str] = field(default_factory=list)
+    removed: list[str] = field(default_factory=list)
 
 
 class FileSynchronizer:

@@ -22,7 +22,6 @@ from qdrant_client.models import (
 from .types import SearchResult, VectorDocument
 
 TEXT_EMBEDDING_MODEL = "Qdrant/bm25"
-TEXT_USING = "bm25"
 
 
 @dataclass
@@ -37,11 +36,10 @@ class QdrantConfig:
 class QdrantVectorDatabase:
     def __init__(self, config: QdrantConfig) -> None:
         self.embedding_model = config.embedding_model
-        self.model_using = self.embedding_model.split("/")[1].strip()
         self._client: QdrantClient = self._create_client(
             config.location, config.url, config.api_key
         )
-        self.size = self.client.get_embedding_size(TEXT_EMBEDDING_MODEL)
+        self.size = self.client.get_embedding_size(self.embedding_model)
         self.batch_size = config.batch_size
 
     @property
@@ -178,12 +176,12 @@ class QdrantVectorDatabase:
             prefetch = [
                 Prefetch(
                     query=Document(text=query_text, model=self.embedding_model),
-                    using=self.model_using,
+                    using="code",
                     limit=limit * 2,
                 ),
                 Prefetch(
                     query=Document(text=query_text, model=TEXT_EMBEDDING_MODEL),
-                    using=TEXT_USING,
+                    using="bm25",
                     limit=limit * 2,
                 ),
             ]
