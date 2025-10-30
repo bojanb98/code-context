@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from loguru import logger
+from openai import OpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -25,8 +26,24 @@ TEXT_EMBEDDING_MODEL = "Qdrant/bm25"
 
 
 @dataclass
+class EmbeddingConfig:
+    model: str
+    provider: Literal["fastembed", "openai"] = "fastembed"
+    url: str | None = None
+    api_key: str = ""
+    size: int | None = None
+
+    def __post_init__(self):
+        if self.provider == "openai":
+            if self.url is None:
+                raise ValueError("URL must be set for openai provider")
+            if self.size is None:
+                raise ValueError("Size must be set for openai provider")
+
+
+@dataclass
 class QdrantConfig:
-    embedding_model: str
+    embedding: EmbeddingConfig
     location: Literal["memory", "server"] = "memory"
     url: str | None = None
     api_key: str | None = None
@@ -35,16 +52,32 @@ class QdrantConfig:
 
 class QdrantVectorDatabase:
     def __init__(self, config: QdrantConfig) -> None:
-        self.embedding_model = config.embedding_model
+        self.embedding = config.embedding
         self._client: QdrantClient = self._create_client(
             config.location, config.url, config.api_key
         )
-        self.size = self.client.get_embedding_size(self.embedding_model)
+        self.size = (
+            self.client.get_embedding_size(self.embedding.model)
+            if self.embedding.provider == "fastembed"
+            else self.embedding.size or 768
+        )
         self.batch_size = config.batch_size
+        self.openai: OpenAI | None = None
 
     @property
     def client(self) -> QdrantClient:
         return self._client
+
+    def _get_openai(self) -> OpenAI:
+        if self.embedding.provider != "openai":
+            raise ValueError("Invalid embedding provider")
+        if self.openai is None:
+            self.openai = OpenAI(
+                base_url=self.embedding.url,
+                api_key=self.embedding.api_key,
+            )
+
+        return self.openai
 
     def _create_client(
         self,
@@ -104,6 +137,18 @@ class QdrantVectorDatabase:
             logger.error("Error dropping collection '{}': {}", collection_name, e)
             raise
 
+    def _create_embedding(self, query: str) -> Document | list[float]:
+        if self.embedding.provider == "fastembed":
+            return Document(text=query, model=self.embedding.model)
+
+        openai = self._get_openai()
+
+        response = openai.embeddings.create(input=query, model=self.embedding.model)
+
+        vector = response.data[0].embedding
+
+        return vector
+
     async def upload_documents(
         self, collection_name: str, documents: list[VectorDocument]
     ) -> None:
@@ -122,7 +167,7 @@ class QdrantVectorDatabase:
             PointStruct(
                 id=uuid.uuid4().hex,
                 vector={
-                    "code": Document(text=doc.content, model=self.embedding_model),
+                    "code": self._create_embedding(doc.content),
                     "bm25": Document(text=doc.content, model=TEXT_EMBEDDING_MODEL),
                 },
                 payload={
@@ -175,7 +220,7 @@ class QdrantVectorDatabase:
         try:
             prefetch = [
                 Prefetch(
-                    query=Document(text=query_text, model=self.embedding_model),
+                    query=self._create_embedding(query_text),
                     using="code",
                     limit=limit * 2,
                 ),

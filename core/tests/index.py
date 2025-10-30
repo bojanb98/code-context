@@ -2,35 +2,37 @@ import asyncio
 from pathlib import Path
 from timeit import default_timer as timer
 
-from fastembed.common.model_description import DenseModelDescription, ModelSource
-from fastembed.text.onnx_embedding import supported_onnx_models
 from loguru import logger
 
 from core import Context
 from core.indexing_service import IndexingConfig
 from core.qdrant import QdrantConfig
+from core.qdrant.client import EmbeddingConfig
 from core.sync import SynchronizerConfig
 
 logger.level("DEBUG")
 
 
 async def run_test():
-    model = "sirasagi62/code-rank-embed-onnx"
-    supported_onnx_models.append(
-        DenseModelDescription(
-            model=model,
-            description="Custom CodeRankEmbed model",
-            license="",
-            size_in_GB=0.6,
-            sources=ModelSource(hf=model),
-            dim=768,
-            model_file="model.onnx",
-        )
-    )
+    model = "vuongnguyen2212/CodeRankEmbed"
 
     context = Context(
-        QdrantConfig(model),
-        IndexingConfig(64, 2500, 300, SynchronizerConfig("./snapshots")),
+        QdrantConfig(
+            EmbeddingConfig(
+                model,
+                provider="openai",
+                url="http://localhost:11434/v1",
+                size=768,
+            ),
+            "server",
+            "localhost:6333",
+        ),
+        IndexingConfig(
+            64,
+            2500,
+            300,
+            SynchronizerConfig("./snapshots"),
+        ),
     )
 
     path = Path("./").resolve().absolute()

@@ -40,7 +40,7 @@ class Context:
         codebase_path: str | Path,
         query: str,
         top_k: int = 5,
-        threshold: float = 0.5,
+        threshold: float = 0.0,
     ) -> list[SearchResult]:
         """Search indexed code semantically.
 

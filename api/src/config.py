@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from core import Context
 from core.context import IndexingConfig
 from core.qdrant import QdrantConfig
+from core.qdrant.client import EmbeddingConfig
 from core.sync import SynchronizerConfig
 from loguru import logger
 from pydantic import Field
@@ -19,9 +20,18 @@ class AppSettings(BaseSettings):
     qdrant_url: str = Field(default="localhost:6333", description="Qdrant server URL")
     qdrant_api_key: str = Field(default="", description="Qdrant API key")
 
+    embedding_provider: Literal["fastembed", "openai"] = Field(
+        default="openai", description="Embedding provider type"
+    )
     embedding_model: str = Field(
-        default="sentence-transformers/all-MiniLM-L6-v2",
-        description="FastEmbed model name for embeddings",
+        default="vuongnguyen2212/CodeRankEmbed",
+        description="Model name for embeddings",
+    )
+    embedding_url: str | None = Field(
+        default="http://localhost:11434/v1", description="URL for openai provider"
+    )
+    embedding_api_key: str = Field(
+        default="api_key", description="API key in case of openai provider"
     )
 
     batch_size: int = Field(default=32, description="Batch size for processing")
@@ -34,7 +44,7 @@ class AppSettings(BaseSettings):
         default=".context", description="Configuration directory name"
     )
     snapshot_dir: str = Field(
-        default="./snapshots", description="Snapshot directory path"
+        default="~/.code-context/snapshots", description="Snapshot directory path"
     )
 
 
@@ -136,7 +146,12 @@ def get_context() -> Context:
         settings = get_settings()
         _context = Context(
             QdrantConfig(
-                settings.embedding_model,
+                EmbeddingConfig(
+                    settings.embedding_model,
+                    settings.embedding_provider,
+                    settings.embedding_url,
+                    settings.embedding_api_key,
+                ),
                 "server",
                 settings.qdrant_url,
                 settings.qdrant_api_key,
