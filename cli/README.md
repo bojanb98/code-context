@@ -34,11 +34,6 @@ code search <path> <query> [limit] [extensions]
 code search . <query> [limit] [extensions]
 ```
 
-### Reindex a directory
-```bash
-code reindex <path>
-```
-
 ### Remove index
 ```bash
 code unindex <path>
