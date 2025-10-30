@@ -9,12 +9,20 @@ from qdrant_client.models import (
     Document,
     Filter,
     FilterSelector,
+    Fusion,
+    FusionQuery,
+    Modifier,
     PointStruct,
     PointVectors,
+    Prefetch,
+    SparseVectorParams,
     VectorParams,
 )
 
 from .types import SearchResult, VectorDocument
+
+TEXT_EMBEDDING_MODEL = "Qdrant/bm25"
+TEXT_USING = "bm25"
 
 
 @dataclass
@@ -29,10 +37,11 @@ class QdrantConfig:
 class QdrantVectorDatabase:
     def __init__(self, config: QdrantConfig) -> None:
         self.embedding_model = config.embedding_model
+        self.model_using = self.embedding_model.split("/")[1].strip()
         self._client: QdrantClient = self._create_client(
             config.location, config.url, config.api_key
         )
-        self.size = self.client.get_embedding_size(self.embedding_model)
+        self.size = self.client.get_embedding_size(TEXT_EMBEDDING_MODEL)
         self.batch_size = config.batch_size
 
     @property
@@ -61,10 +70,13 @@ class QdrantVectorDatabase:
 
         self.client.create_collection(
             collection_name=collection_name,
-            vectors_config=VectorParams(
-                size=self.size,
-                distance=Distance.COSINE,
-            ),
+            vectors_config={
+                "code": VectorParams(
+                    size=self.size,
+                    distance=Distance.COSINE,
+                )
+            },
+            sparse_vectors_config={"bm25": SparseVectorParams(modifier=Modifier.IDF)},
         )
 
         logger.debug("Collection '{}' created successfully", collection_name)
@@ -111,7 +123,10 @@ class QdrantVectorDatabase:
         points = [
             PointStruct(
                 id=uuid.uuid4().hex,
-                vector=Document(text=doc.content, model=self.embedding_model),
+                vector={
+                    "code": Document(text=doc.content, model=self.embedding_model),
+                    "bm25": Document(text=doc.content, model=TEXT_EMBEDDING_MODEL),
+                },
                 payload={
                     "content": doc.content,
                     "relative_path": doc.relative_path,
@@ -160,9 +175,22 @@ class QdrantVectorDatabase:
         )
 
         try:
+            prefetch = [
+                Prefetch(
+                    query=Document(text=query_text, model=self.embedding_model),
+                    using=self.model_using,
+                    limit=limit * 2,
+                ),
+                Prefetch(
+                    query=Document(text=query_text, model=TEXT_EMBEDDING_MODEL),
+                    using=TEXT_USING,
+                    limit=limit * 2,
+                ),
+            ]
             search_result = self.client.query_points(
                 collection_name=collection_name,
-                query=Document(text=query_text, model=self.embedding_model),
+                prefetch=prefetch,
+                query=FusionQuery(fusion=Fusion.RRF),
                 limit=limit,
                 score_threshold=score_threshold,
             )
