@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from loguru import logger
 
-from .routes import index, search
+from routes import index, search
 
 logger.remove()
 logger.add(

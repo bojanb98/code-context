@@ -1,8 +1,7 @@
-from core import Context
 from fastapi import APIRouter, Query
 from loguru import logger
 
-from config import get_context
+from config import ContextDep
 from models.search import SearchResponse, SearchResult
 
 router = APIRouter()
@@ -10,12 +9,12 @@ router = APIRouter()
 
 @router.get("/", response_model=SearchResponse, summary="Semantic code search")
 async def search_codebase(
+    context: ContextDep,
     path: str = Query(..., description="Path to the codebase to search in"),
     query: str = Query(..., description="Search query"),
     limit: int = Query(
         default=15, ge=1, le=100, description="Maximum number of results"
     ),
-    context: Context = get_context(),
 ) -> SearchResponse:
     results = await context.search(path, query, limit)
 

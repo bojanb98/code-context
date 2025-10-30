@@ -1,12 +1,13 @@
 import json
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal
 
 from core import Context
 from core.context import IndexingConfig
 from core.qdrant import QdrantConfig
 from core.qdrant.client import EmbeddingConfig
 from core.sync import SynchronizerConfig
+from fastapi import Depends
 from loguru import logger
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,6 +34,7 @@ class AppSettings(BaseSettings):
     embedding_api_key: str = Field(
         default="api_key", description="API key in case of openai provider"
     )
+    embedding_size: int | None = Field(default=768, description="Embedding vector size")
 
     batch_size: int = Field(default=32, description="Batch size for processing")
     chunk_size: int = Field(default=2500, description="Chunk size for text splitting")
@@ -151,6 +153,7 @@ def get_context() -> Context:
                     settings.embedding_provider,
                     settings.embedding_url,
                     settings.embedding_api_key,
+                    settings.embedding_size,
                 ),
                 "server",
                 settings.qdrant_url,
@@ -165,3 +168,6 @@ def get_context() -> Context:
         )
 
     return _context
+
+
+ContextDep = Annotated[Context, Depends(get_context)]

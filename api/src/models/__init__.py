@@ -1,6 +1,5 @@
 from .index import ClearIndexRequest, IndexRequest
 from .search import SearchRequest, SearchResponse, SearchResult
-from .status import StatusResponse
 
 __all__ = [
     # Indexing models
@@ -10,6 +9,4 @@ __all__ = [
     "SearchResult",
     "SearchRequest",
     "SearchResponse",
-    # Status models
-    "StatusResponse",
 ]
