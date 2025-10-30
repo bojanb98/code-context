@@ -1,17 +1,15 @@
 # Claude Context Extensions
 
-This project extends [@zilliz/claude-context-core](https://github.com/zilliztech/claude-context-core) for easier local use and integration. It provides a REST API service and command-line interface for indexing and searching codebases using semantic embeddings.
+Semantic code search and indexing system inspired by [@zilliz/claude-context-core](https://github.com/zilliztech/claude-context-core), built with a custom Python implementation using Qdrant and FastEmbed.
 
-## Purpose
+## Architecture
 
-Intended to make claude-context-core more accessible for local development and integration into other tools. Provides HTTP API and CLI interfaces to the core functionality.
-
-## Organization
-
-- `api/` - REST API service built with Bun and Elysia.js
-- `cli/` - Go command-line interface for API interaction
+- `core/` - Python library for semantic code indexing and search using Qdrant
+- `api/` - FastAPI REST service for HTTP interface to core functionality
+- `cli/` - Go command-line tool for API interaction
 
 See individual README files for detailed documentation:
+- [Core Documentation](core/README.md)
 - [API Documentation](api/README.md)
 - [CLI Documentation](cli/README.md)
 
@@ -19,7 +17,7 @@ See individual README files for detailed documentation:
 
 Start API service:
 ```bash
-cd api && bun install && bun run dev
+cd api && uv sync && uv run uvicorn src.app:app --reload --host 0.0.0.0 --port 19531
 ```
 
 Use CLI tool:

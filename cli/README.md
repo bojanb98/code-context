@@ -4,7 +4,7 @@ A command-line interface for indexing and searching codebases via a local HTTP A
 
 ## Overview
 
-The `code` CLI provides commands to index, search, reindex, and unindex code directories. It communicates with a local API server running on `localhost:19531` to perform code indexing and semantic search operations.
+The `code` CLI provides commands to index, search, reindex, and unindex code directories. It communicates with a local API server running on `localhost:19531` to perform code indexing and semantic search operations. All paths are expanded to the absolute paths.
 
 ## Installation
 
@@ -31,7 +31,7 @@ code search <path> <query> [limit] [extensions]
 
 ### Search current working directory
 ```bash
-code search-cwd <query> [limit] [extensions]
+code search . <query> [limit] [extensions]
 ```
 
 ### Reindex a directory
@@ -52,5 +52,3 @@ The CLI expects the API service to be running on `http://localhost:19531`. Make 
 
 - Go 1.24.8+
 - [Cobra](https://github.com/spf13/cobra) for CLI framework
-
-## License
