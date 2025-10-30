@@ -7,12 +7,13 @@ from pathlib import Path
 from loguru import logger
 
 from .merkle import MerkleDAG
+from .util import DEFAULT_IGNORE_PATTERNS
 
 
 @dataclass
 class SynchronizerConfig:
     snapshot_dir: str
-    ignore_patterns: str
+    ignore_patterns: list[str] = []
 
 
 @dataclass
@@ -29,12 +30,11 @@ class FileSynchronizer:
         self.snapshot_dir = Path(config.snapshot_dir).resolve()
         self.snapshot_dir.mkdir(parents=True, exist_ok=True)
         self.snapshot_path = self._get_snapshot_path(self.root_dir, self.snapshot_dir)
-        self.ignore_patterns = config.ignore_patterns
+        self.ignore_patterns = set(config.ignore_patterns + DEFAULT_IGNORE_PATTERNS)
         self.file_hashes: dict[str, str] = {}
         self.merkle_dag = MerkleDAG()
 
     def _get_snapshot_path(self, codebase_path: Path, snapshot_dir: Path) -> Path:
-        # Create hash of the absolute path
         path_hash = hashlib.md5(str(codebase_path).encode("utf-8")).hexdigest()
         return snapshot_dir / f"{path_hash}.json"
 
@@ -85,13 +85,11 @@ class FileSynchronizer:
         if not self.ignore_patterns:
             return False
 
-        # Normalize path for pattern matching
         normalized_path = str(relative_path).replace(os.sep, "/").strip("/")
 
         if not normalized_path:
             return False
 
-        # Check each pattern
         for pattern in self.ignore_patterns:
             if self._match_pattern(normalized_path, pattern, is_directory):
                 return True

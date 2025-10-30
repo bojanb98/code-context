@@ -79,7 +79,11 @@ class IndexingService:
     ):
         await self._prepare_collection(codebase_path, force_reindex)
 
-        code_files = await self._get_code_files(codebase_path)
+        collecation_name = get_collection_name(codebase_path)
+
+        changes = await self.synchronizers[collecation_name].check_for_changes()
+        code_files = [Path(p).resolve() for p in changes.added]
+
         logger.debug("Found {} code files", len(code_files))
 
         if not code_files:
@@ -131,6 +135,14 @@ class IndexingService:
 
         collection_exists = await self.vector_database.has_collection(collection_name)
 
+        if collection_name in self.synchronizers and force_reindex:
+            await self.synchronizers[collection_name].delete_snapshot()
+            del self.synchronizers[collection_name]
+
+        self.synchronizers[collection_name] = FileSynchronizer(
+            codebase_path, self.syncrhonizer_config
+        )
+
         if collection_exists and not force_reindex:
             logger.debug(
                 "Collection {} already exists, skipping creation", collection_name
@@ -145,29 +157,6 @@ class IndexingService:
 
         await self.vector_database.create_collection(collection_name)
         logger.debug("Collection {} created successfully", collection_name)
-
-    async def _get_code_files(self, codebase_path: Path) -> list[Path]:
-        files: list[Path] = []
-
-        async def traverse_directory(current_path: Path) -> None:
-            try:
-                entries = list(current_path.iterdir())
-            except (OSError, PermissionError):
-                return
-
-            for entry in entries:
-                relative_path = entry.relative_to(codebase_path)
-                if self._matches_ignore_pattern(relative_path):
-                    continue
-
-                if entry.is_dir():
-                    await traverse_directory(entry)
-                elif entry.is_file():
-                    if entry.suffix in SUPPORTED_EXTENSIONS:
-                        files.append(entry)
-
-        await traverse_directory(codebase_path)
-        return files
 
     def _matches_ignore_pattern(self, relative_path: Path) -> bool:
         if not self.syncrhonizer_config.ignore_patterns:
