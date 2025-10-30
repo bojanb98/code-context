@@ -1,0 +1,26 @@
+[project]
+name = "core"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "loguru>=0.7.3",
+    "qdrant-client>=1.15.1",
+    "tree-sitter-language-pack>=0.10.0",
+]
+
+
+[tool.pyright]
+exclude = ["**/node_modules", ".venv"]
+include = ["./src/"]
+venvPath = "."
+venv = ".venv"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[build-system]
+requires = ["uv_build>=0.9.6,<0.10.0"]
+build-backend = "uv_build"

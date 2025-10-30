@@ -1,0 +1,242 @@
+import uuid
+from dataclasses import dataclass
+from typing import Any, Literal
+
+from loguru import logger
+from qdrant_client import QdrantClient
+from qdrant_client.models import (
+    Distance,
+    Document,
+    Filter,
+    FilterSelector,
+    PointStruct,
+    PointVectors,
+    VectorParams,
+)
+
+from .types import SearchResult, VectorDocument
+
+
+@dataclass
+class QdrantConfig:
+    embedding_model: str
+    location: Literal["memory", "server"] = "memory"
+    url: str | None = None
+    api_key: str | None = None
+    batch_size: int = 32
+
+
+class QdrantVectorDatabase:
+    def __init__(self, config: QdrantConfig) -> None:
+        self.embedding_model = config.embedding_model
+        self._client: QdrantClient = self._create_client(
+            config.location, config.url, config.api_key
+        )
+        self.size = self.client.get_embedding_size(self.embedding_model)
+        self.batch_size = config.batch_size
+
+    @property
+    def client(self) -> QdrantClient:
+        return self._client
+
+    def _create_client(
+        self,
+        location: Literal["memory", "server"] = "memory",
+        url: str | None = None,
+        api_key: str | None = None,
+    ) -> QdrantClient:
+        if location == "memory":
+            logger.info("Using in-memory Qdrant client")
+            return QdrantClient(":memory:")
+
+        if url is None:
+            raise ValueError("Qdrant URL is required for server deployment")
+
+        return QdrantClient(url=url, api_key=api_key)
+
+    async def create_collection(self, collection_name: str) -> None:
+        if await self.has_collection(collection_name):
+            logger.debug("Collection '{}' already exists", collection_name)
+            return
+
+        self.client.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(
+                size=self.size,
+                distance=Distance.COSINE,
+            ),
+        )
+
+        logger.debug("Collection '{}' created successfully", collection_name)
+
+    async def has_collection(self, collection_name: str) -> bool:
+        try:
+            return self.client.collection_exists(collection_name=collection_name)
+        except Exception as e:
+            logger.error("Error checking collection existence: {}", e)
+            return False
+
+    async def list_collections(self) -> list[str]:
+        try:
+            collections = self.client.get_collections()
+            return [collection.name for collection in collections.collections]
+        except Exception as e:
+            logger.error("Error listing collections: {}", e)
+            return []
+
+    async def drop_collection(self, collection_name: str) -> None:
+        logger.info("Dropping collection '{}'", collection_name)
+
+        try:
+            self.client.delete_collection(collection_name=collection_name)
+            logger.info("Collection '{}' dropped successfully", collection_name)
+        except Exception as e:
+            logger.error("Error dropping collection '{}': {}", collection_name, e)
+            raise
+
+    async def upload_documents(
+        self, collection_name: str, documents: list[VectorDocument]
+    ) -> None:
+        """Upload documents into collection.
+
+        Args:
+            collection_name: Name of the collection
+            documents: List of documents to upload
+        """
+        if not documents:
+            return
+
+        logger.info("Inserting {} documents into '{}'", len(documents), collection_name)
+
+        points = [
+            PointStruct(
+                id=uuid.uuid4().hex,
+                vector=Document(text=doc.content, model=self.embedding_model),
+                payload={
+                    "content": doc.content,
+                    "relative_path": doc.relative_path,
+                    "start_line": doc.start_line,
+                    "end_line": doc.end_line,
+                    "file_extension": doc.file_extension,
+                    "metadata": doc.metadata,
+                },
+            )
+            for doc in documents
+        ]
+
+        try:
+            self.client.upload_points(
+                collection_name=collection_name,
+                points=points,
+                batch_size=self.batch_size,
+            )
+            logger.info("Successfully inserted {} documents", len(documents))
+        except Exception as e:
+            logger.error("Error inserting documents: {}", e)
+            raise
+
+    async def search(
+        self,
+        collection_name: str,
+        query_text: str,
+        limit: int = 10,
+        score_threshold: float = 0.0,
+    ) -> list[SearchResult]:
+        """Search for similar documents using text query with automatic embedding.
+
+        Args:
+            collection_name: Name of the collection
+            query_text: Query text to search for
+            limit: Maximum number of results to return
+            score_threshold: Minimum similarity score threshold
+
+        Returns:
+            List of search results
+        """
+        logger.debug(
+            "Text searching in '{}' with query: '{}...'",
+            collection_name,
+            query_text[:50],
+        )
+
+        try:
+            search_result = self.client.query_points(
+                collection_name=collection_name,
+                query=Document(text=query_text, model=self.embedding_model),
+                limit=limit,
+                score_threshold=score_threshold,
+            )
+
+            results = []
+            for point in search_result.points:
+                payload = point.payload or {}
+                results.append(
+                    SearchResult(
+                        content=payload.get("content", ""),
+                        relative_path=payload.get("relative_path", ""),
+                        start_line=payload.get("start_line", 0),
+                        end_line=payload.get("end_line", 0),
+                        language=payload.get("metadata", {}).get("language", "unknown"),
+                        score=point.score,
+                    )
+                )
+
+            logger.debug("Found {} results for text query", len(results))
+            return results
+
+        except Exception as e:
+            logger.error("Error searching collection with text: {}", e)
+            raise
+
+    async def delete(self, collection_name: str, filter: Filter) -> None:
+        """Delete documents using a filter condition.
+
+        Args:
+            collection_name: Name of the collection
+            filter: Filter condition to select points for deletion
+        """
+        logger.debug("Deleting documents from '{}' using filter", collection_name)
+
+        try:
+            self.client.delete(
+                collection_name=collection_name,
+                points_selector=FilterSelector(filter=filter),
+            )
+            logger.debug("Successfully deleted documents using filter")
+        except Exception as e:
+            logger.error("Error deleting documents with filter: {}", e)
+            raise
+
+    async def update_vectors(
+        self, collection_name: str, updates: list[dict[str, Any]]
+    ) -> None:
+        """Update vectors for existing points efficiently.
+
+        Args:
+            collection_name: Name of the collection
+            updates: List of updates with id, vector, and optional payload
+        """
+        if not updates:
+            return
+
+        logger.debug("Updating {} vectors in '{}'", len(updates), collection_name)
+
+        try:
+            point_vectors = []
+            for update in updates:
+                point_vectors.append(
+                    PointVectors(
+                        id=update["id"],
+                        vector=update["vector"],
+                    )
+                )
+
+            self.client.update_vectors(
+                collection_name=collection_name,
+                points=point_vectors,
+            )
+
+            logger.debug("Successfully updated {} vectors", len(updates))
+        except Exception as e:
+            logger.error("Error updating vectors: {}", e)
+            raise
