@@ -41,7 +41,7 @@ class IndexingService:
             codebase_path, self.syncrhonizer_config
         ).delete_snapshot()
 
-        if codebase_path is self.synchronizers:
+        if collection_name is self.synchronizers:
             del self.synchronizers[collection_name]
 
     async def index(self, codebase_path: Path, force_reindex: bool = False):
@@ -82,7 +82,7 @@ class IndexingService:
         collecation_name = get_collection_name(codebase_path)
 
         results = await self.synchronizers[collecation_name].check_for_changes()
-        code_files = [Path(p) for p in results.added]
+        code_files = [codebase_path / p for p in results.added]
 
         logger.debug("Found {} code files", len(code_files))
 
@@ -115,7 +115,9 @@ class IndexingService:
         for file_path in changes.removed + changes.modified:
             await self._delete_file_chunks(collection_name, file_path)
 
-        to_add = [Path(file_path) for file_path in changes.added + changes.modified]
+        to_add = [
+            codebase_path / file_path for file_path in changes.added + changes.modified
+        ]
 
         await self._process_file_list(to_add, codebase_path)
 
@@ -177,7 +179,7 @@ class IndexingService:
         payloads = []
 
         for _, file_path in enumerate(file_paths):
-            content = file_path.resolve().read_text(encoding="utf-8")
+            content = file_path.read_text(encoding="utf-8")
             chunks = await self.code_splitter.split(content, file_path)
 
             for chunk in chunks:

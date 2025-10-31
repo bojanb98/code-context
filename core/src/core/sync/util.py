@@ -1,6 +1,7 @@
 DEFAULT_IGNORE_PATTERNS = [
     "node_modules/**",
-    "bin/**" "venv/**",
+    "bin/**",
+    "venv/**",
     "dist/**",
     "build/**",
     "out/**",

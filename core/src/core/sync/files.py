@@ -156,10 +156,6 @@ class FileSynchronizer:
         return dag
 
     async def initialize(self) -> None:
-        """Initialize the synchronizer.
-
-        Loads existing snapshot or creates a new one.
-        """
         logger.info("Initializing file synchronizer for {}", self.root_dir)
         await self._load_snapshot()
         self.merkle_dag = self._build_merkle_dag(self.file_hashes)
@@ -259,7 +255,6 @@ class FileSynchronizer:
         try:
             data = json.loads(self.snapshot_path.read_text(encoding="utf-8"))
 
-            # Reconstruct file hashes
             self.file_hashes = dict(data.get("file_hashes", []))
 
             # Reconstruct Merkle DAG
