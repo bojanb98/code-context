@@ -17,7 +17,7 @@ See individual README files for detailed documentation:
 
 Start API service:
 ```bash
-cd api && uv sync && uv run uvicorn src.app:app --reload --host 0.0.0.0 --port 19531
+cd api && uv sync && uv run run src/main.py
 ```
 
 Use CLI tool:

@@ -12,12 +12,12 @@ uv sync
 
 Start the development server:
 ```bash
-uv run uvicorn src.app:app --reload --host 0.0.0.0 --port 19531
+uv run fastapi dev src/main.py
 ```
 
-Or use the provided script:
+Or run the production server:
 ```bash
-uv run python -m src.app
+uv run fastapi run src/main.py
 ```
 
 The API will be available at `http://localhost:19531` with Swagger documentation at `/swagger`.
@@ -45,7 +45,7 @@ The API uses the core library with configurable Qdrant and embedding settings. S
 ## Architecture
 
 Built on top of the custom Python core library that provides:
-- Semantic embeddings using FastEmbed
+- Semantic embeddings using FastEmbed or any OpenAI compatible provider
 - Vector storage with Qdrant
 - Code splitting and indexing
 - File synchronization and change detection
