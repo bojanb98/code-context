@@ -81,8 +81,8 @@ class IndexingService:
 
         collecation_name = get_collection_name(codebase_path)
 
-        changes = await self.synchronizers[collecation_name].check_for_changes()
-        code_files = [Path(p).resolve() for p in changes.added]
+        results = await self.synchronizers[collecation_name].check_for_changes()
+        code_files = [Path(p) for p in results.added]
 
         logger.debug("Found {} code files", len(code_files))
 
@@ -115,9 +115,7 @@ class IndexingService:
         for file_path in changes.removed + changes.modified:
             await self._delete_file_chunks(collection_name, file_path)
 
-        to_add = [
-            Path(file_path).resolve() for file_path in changes.added + changes.modified
-        ]
+        to_add = [Path(file_path) for file_path in changes.added + changes.modified]
 
         await self._process_file_list(to_add, codebase_path)
 
@@ -179,7 +177,7 @@ class IndexingService:
         payloads = []
 
         for _, file_path in enumerate(file_paths):
-            content = file_path.read_text(encoding="utf-8")
+            content = file_path.resolve().read_text(encoding="utf-8")
             chunks = await self.code_splitter.split(content, file_path)
 
             for chunk in chunks:

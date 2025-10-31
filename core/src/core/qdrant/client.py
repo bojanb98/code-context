@@ -1,3 +1,4 @@
+import ssl
 import uuid
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -92,7 +93,9 @@ class QdrantVectorDatabase:
         if url is None:
             raise ValueError("Qdrant URL is required for server deployment")
 
-        return QdrantClient(url=url, api_key=api_key)
+        return QdrantClient(
+            url=url, api_key=api_key, verify=ssl.create_default_context()
+        )
 
     async def create_collection(self, collection_name: str) -> None:
         if await self.has_collection(collection_name):

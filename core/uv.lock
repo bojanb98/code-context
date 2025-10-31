@@ -118,22 +118,20 @@ wheels = [
 
 [[package]]
 name = "core"
-version = "0.3.0"
+version = "0.4.2"
 source = { editable = "." }
 dependencies = [
-    { name = "fastembed" },
     { name = "loguru" },
     { name = "openai" },
-    { name = "qdrant-client" },
+    { name = "qdrant-client", extra = ["fastembed"] },
     { name = "tree-sitter-language-pack" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "fastembed", specifier = ">=0.7.3" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "openai", specifier = ">=2.6.1" },
-    { name = "qdrant-client", specifier = ">=1.15.1" },
+    { name = "qdrant-client", extras = ["fastembed"], specifier = ">=1.15.1" },
     { name = "tree-sitter-language-pack", specifier = ">=0.10.0" },
 ]
 
@@ -947,6 +945,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/79/8b/76c7d325e11d97cb8eb5e261c3759e9ed6664735afbf32fdded5b580690c/qdrant_client-1.15.1.tar.gz", hash = "sha256:631f1f3caebfad0fd0c1fba98f41be81d9962b7bf3ca653bed3b727c0e0cbe0e", size = 295297 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/33/d8df6a2b214ffbe4138db9a1efe3248f67dc3c671f82308bea1582ecbbb7/qdrant_client-1.15.1-py3-none-any.whl", hash = "sha256:2b975099b378382f6ca1cfb43f0d59e541be6e16a5892f282a4b8de7eff5cb63", size = 337331 },
+]
+
+[package.optional-dependencies]
+fastembed = [
+    { name = "fastembed" },
 ]
 
 [[package]]

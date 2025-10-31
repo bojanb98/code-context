@@ -46,7 +46,8 @@ class AppSettings(BaseSettings):
         default=".context", description="Configuration directory name"
     )
     snapshot_dir: str = Field(
-        default="~/.code-context/snapshots", description="Snapshot directory path"
+        default=str(Path.home() / ".code-context/snapshots"),
+        description="Snapshot directory path",
     )
 
 
