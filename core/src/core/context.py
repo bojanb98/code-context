@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from .indexing_service import IndexingConfig, IndexingService
-from .qdrant import QdrantConfig, QdrantVectorDatabase, SearchResult
+from .qdrant import ExplainerConfig, QdrantConfig, QdrantVectorDatabase, SearchResult
 from .search_service import SearchService
 from .utils import get_collection_name
 
@@ -11,8 +11,9 @@ class Context:
         self,
         qdrant_config: QdrantConfig,
         indexing_config: IndexingConfig,
+        explainer_config: ExplainerConfig | None = None,
     ) -> None:
-        self.vector_database = QdrantVectorDatabase(qdrant_config)
+        self.vector_database = QdrantVectorDatabase(qdrant_config, explainer_config)
         self.indexing_service = IndexingService(self.vector_database, indexing_config)
         self.search_service = SearchService(self.vector_database)
 

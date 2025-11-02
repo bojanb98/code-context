@@ -1,4 +1,5 @@
 from .client import QdrantConfig, QdrantVectorDatabase
+from .explainer_service import ExplainerConfig
 from .types import SearchOptions, SearchResult, VectorDocument
 
 __all__ = [
@@ -7,5 +8,5 @@ __all__ = [
     "VectorDocument",
     "SearchOptions",
     "QdrantConfig",
+    "ExplainerConfig",
 ]
-
