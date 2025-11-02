@@ -17,7 +17,7 @@ See individual README files for detailed documentation:
 
 Start API service:
 ```bash
-cd api && uv sync && uv run run src/main.py
+cd api && uv sync && uv fastapi run src/main.py
 ```
 
 Use CLI tool:
