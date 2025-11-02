@@ -9,10 +9,7 @@ mod utils;
 
 #[derive(Parser)]
 #[command(name = "code")]
-#[command(
-    about = "CLI for code indexing and search",
-    long_about = "Code is a CLI tool for indexing and searching codebases. It provides commands to index, reindex, search, and unindex code."
-)]
+#[command(about = "CLI for code indexing and search")]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -21,37 +18,28 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    #[command(
-        about = "Index a code directory",
-        long_about = "Index a code directory at the specified path for searching."
-    )]
+    #[command(about = "Index a code directory")]
     Index {
-        #[arg(help = "Directory path to index")]
-        path: String,
+        #[arg(help = "Directory path to index (defaults to current directory)")]
+        path: Option<String>,
         #[arg(short, long, help = "Force reindexing even if already indexed")]
         force: bool,
     },
-    #[command(
-        about = "Search indexed code",
-        long_about = "Search indexed code at the specified path with a query."
-    )]
+    #[command(about = "Search indexed code")]
     Search {
-        #[arg(help = "Directory path to search in")]
-        path: String,
         #[arg(help = "Search query string")]
         query: String,
+        #[arg(help = "Directory path to search in (defaults to current directory)")]
+        path: Option<String>,
         #[arg(help = "Maximum number of results", default_value = "5")]
         limit: u32,
         #[arg(help = "File extensions to filter (e.g., \".go,.js\")")]
         extensions: Option<String>,
     },
-    #[command(
-        about = "Drop a code directory",
-        long_about = "Remove a code directory at the specified path from the index."
-    )]
+    #[command(about = "Remove a code directory from the index")]
     Drop {
-        #[arg(help = "Directory path to remove from index")]
-        path: String,
+        #[arg(help = "Directory path to remove from index (defaults to current directory)")]
+        path: Option<String>,
     },
 }
 
@@ -65,8 +53,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cli::commands::execute_index(&client, path, force).await?;
         }
         Commands::Search {
-            path,
             query,
+            path,
             limit,
             extensions,
         } => {

@@ -12,23 +12,25 @@ cargo build --release
 
 ### Index a code directory
 ```bash
-./code index <path> [--force]
+./code index [path] [--force]
 ```
-Indexes a code directory for searching. Use `--force` to reindex even if already indexed.
+Indexes a code directory for searching. Defaults to current directory when no path is provided.
 
 ### Search indexed code
 ```bash
-./code search <path> <query> [limit] [extensions]
+./code search <query> [path] [options]
 ```
-Searches indexed code using semantic similarity.
-- `limit`: Maximum number of results (default: 5)
-- `extensions`: File extensions to filter (e.g., ".go,.js")
+Searches indexed code using semantic similarity. Query is the first argument. Defaults to current directory when no path is provided.
+
+**Options:**
+- `--limit <N>`: Maximum number of results (default: 5)
+- `--extensions <list>`: File extensions to filter (e.g., ".go,.js")
 
 ### Remove a code directory
 ```bash
-./code drop <path>
+./code drop [path]
 ```
-Removes a code directory from the index.
+Removes a code directory from the index. Defaults to current directory when no path is provided.
 
 ## Tech Stack
 

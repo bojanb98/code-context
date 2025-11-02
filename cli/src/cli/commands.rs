@@ -6,9 +6,10 @@ use std::error::Error;
 
 pub async fn execute_index(
     client: &HttpClient,
-    path: String,
+    path: Option<String>,
     force: bool,
 ) -> Result<(), Box<dyn Error>> {
+    let path = path.unwrap_or_else(|| ".".to_string());
     let abs_path = to_absolute(&path)?;
     let request = IndexPathRequest {
         path: abs_path,
@@ -22,11 +23,12 @@ pub async fn execute_index(
 
 pub async fn execute_search(
     client: &HttpClient,
-    path: String,
+    path: Option<String>,
     query: String,
     limit: u32,
     extensions: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
+    let path = path.unwrap_or_else(|| ".".to_string());
     let abs_path = to_absolute(&path)?;
     let params = SearchParams {
         path: abs_path,
@@ -41,7 +43,8 @@ pub async fn execute_search(
     Ok(())
 }
 
-pub async fn execute_drop(client: &HttpClient, path: String) -> Result<(), Box<dyn Error>> {
+pub async fn execute_drop(client: &HttpClient, path: Option<String>) -> Result<(), Box<dyn Error>> {
+    let path = path.unwrap_or_else(|| ".".to_string());
     let abs_path = to_absolute(&path)?;
     let request = IndexPathRequest {
         path: abs_path,

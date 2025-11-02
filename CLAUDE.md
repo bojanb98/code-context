@@ -22,8 +22,9 @@ uv run fastapi run src/main.py    # Production server
 ```bash
 cd cli
 go build -o code .         # Build CLI binary
-./code index <path>        # Index a codebase
-./code search <path> <query> [limit] [extensions]  # Search indexed code
+./code index [path]        # Index current directory or specified path
+./code search <query> [path] [options]  # Search with query as first argument, defaults to current directory
+./code drop [path]         # Remove current directory or specified path from index
 ```
 
 ## Project Architecture

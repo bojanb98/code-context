@@ -22,9 +22,10 @@ cd api && uv sync && uv fastapi run src/main.py
 
 Use CLI tool:
 ```bash
-cd cli && go build -o context-cli .
-./context-cli index /path/to/project
-./context-cli search /path/to/project "function handling auth"
+cd cli && go build -o code .
+./code index [path]                    # Index current directory or specified path
+./code search "query" [path]           # Search in current directory or specified path
+./code drop [path]                     # Remove current directory or specified path from index
 ```
 
 CLI binary can also be downloaded from [Releases](https://github.com/bojanb98/code-context/releases).
