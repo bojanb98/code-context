@@ -164,6 +164,16 @@ class QdrantVectorDatabase:
 
         return embeddings
 
+    def _create_embedding(self, query: str) -> Document | list[float]:
+        if self.embedding.provider == "fastembed":
+            return Document(text=query, model=self.embedding.model)
+
+        openai = self._get_openai()
+
+        response = openai.embeddings.create(input=query, model=self.embedding.model)
+
+        return response.data[0].embedding
+
     async def upload_documents(
         self, collection_name: str, documents: list[VectorDocument]
     ) -> None:
