@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from loguru import logger
-from openai import OpenAI
+from openai import AsyncOpenAI as OpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -22,9 +22,12 @@ from qdrant_client.models import (
     VectorParams,
 )
 
+from .explainer_service import ExplainerConfig, ExplainerService
 from .types import SearchResult, VectorDocument
 
 TEXT_EMBEDDING_MODEL = "Qdrant/bm25"
+
+Embedding = list[float] | Document
 
 
 @dataclass
@@ -53,7 +56,11 @@ class QdrantConfig:
 
 
 class QdrantVectorDatabase:
-    def __init__(self, config: QdrantConfig) -> None:
+    def __init__(
+        self,
+        config: QdrantConfig,
+        explainer_config: ExplainerConfig | None = None,
+    ) -> None:
         self.embedding = config.embedding
         self._client: QdrantClient = self._create_client(
             config.location, config.url, config.api_key
@@ -65,6 +72,10 @@ class QdrantVectorDatabase:
         )
         self.batch_size = config.batch_size
         self.openai: OpenAI | None = None
+        self.explainer: ExplainerService | None = None
+        self.error_vector = [0.0 for _ in range(self.size)]
+        if explainer_config is not None:
+            self.explainer = ExplainerService(explainer_config)
 
     @property
     def client(self) -> QdrantClient:
@@ -103,14 +114,22 @@ class QdrantVectorDatabase:
             logger.debug("Collection '{}' already exists", collection_name)
             return
 
+        dense_vectors: dict[str, VectorParams] = {
+            "code": VectorParams(
+                size=self.size,
+                distance=Distance.COSINE,
+            )
+        }
+
+        if self.explainer is not None:
+            dense_vectors["explanation"] = VectorParams(
+                size=self.size,
+                distance=Distance.COSINE,
+            )
+
         self.client.create_collection(
             collection_name=collection_name,
-            vectors_config={
-                "code": VectorParams(
-                    size=self.size,
-                    distance=Distance.COSINE,
-                )
-            },
+            vectors_config=dense_vectors,
             sparse_vectors_config={"bm25": SparseVectorParams(modifier=Modifier.IDF)},
         )
 
@@ -141,9 +160,7 @@ class QdrantVectorDatabase:
             logger.error("Error dropping collection '{}': {}", collection_name, e)
             raise
 
-    def _create_embeddings(
-        self, queries: list[str]
-    ) -> list[Document] | list[list[float]]:
+    async def _create_embeddings(self, queries: list[str]) -> list[Embedding]:
         if self.embedding.provider == "fastembed":
             return [
                 Document(text=query, model=self.embedding.model) for query in queries
@@ -153,26 +170,87 @@ class QdrantVectorDatabase:
 
         batches = itertools.batched(queries, self.batch_size)
 
-        embeddings: list[list[float]] = []
+        embeddings: list[Embedding] = []
 
         for batch in batches:
 
-            response = openai.embeddings.create(input=batch, model=self.embedding.model)
+            response = await openai.embeddings.create(
+                input=batch, model=self.embedding.model
+            )
 
             for emb in response.data:
                 embeddings.append(emb.embedding)
 
         return embeddings
 
-    def _create_embedding(self, query: str) -> Document | list[float]:
+    async def _create_embedding(self, query: str) -> Embedding:
         if self.embedding.provider == "fastembed":
             return Document(text=query, model=self.embedding.model)
 
         openai = self._get_openai()
 
-        response = openai.embeddings.create(input=query, model=self.embedding.model)
+        response = await openai.embeddings.create(
+            input=query, model=self.embedding.model
+        )
 
         return response.data[0].embedding
+
+    async def _get_explanations(self, code_chunks: list[str]) -> None | list[Embedding]:
+        if self.explainer is None:
+            return None
+
+        explanations = await self.explainer.get_explanations(code_chunks)
+
+        embeddings = await self._create_embeddings(explanations)
+
+        return embeddings
+
+    def _get_points(
+        self,
+        documents: list[VectorDocument],
+        code_embeddings: list[Embedding],
+        explanation_embeddings: list[Embedding] | None,
+    ) -> list[PointStruct]:
+        if explanation_embeddings is None:
+            return [
+                PointStruct(
+                    id=uuid.uuid4().hex,
+                    vector={
+                        "code": emb,
+                        "bm25": Document(text=doc.content, model=TEXT_EMBEDDING_MODEL),
+                    },
+                    payload={
+                        "content": doc.content,
+                        "relative_path": doc.relative_path,
+                        "start_line": doc.start_line,
+                        "end_line": doc.end_line,
+                        "file_extension": doc.file_extension,
+                        "metadata": doc.metadata,
+                    },
+                )
+                for doc, emb in zip(documents, code_embeddings)
+            ]
+        return [
+            PointStruct(
+                id=uuid.uuid4().hex,
+                vector={
+                    "code": emb1,
+                    "explanation": emb2,
+                    "bm25": Document(text=doc.content, model=TEXT_EMBEDDING_MODEL),
+                },
+                payload={
+                    "content": doc.content,
+                    "relative_path": doc.relative_path,
+                    "start_line": doc.start_line,
+                    "end_line": doc.end_line,
+                    "file_extension": doc.file_extension,
+                    "metadata": doc.metadata,
+                },
+            )
+            for doc, emb1, emb2 in zip(
+                documents, code_embeddings, explanation_embeddings
+            )
+        ]
 
     async def upload_documents(
         self, collection_name: str, documents: list[VectorDocument]
@@ -188,26 +266,12 @@ class QdrantVectorDatabase:
 
         logger.info("Inserting {} documents into '{}'", len(documents), collection_name)
 
-        embeddings = self._create_embeddings([doc.content for doc in documents])
+        code_chunks = [doc.content for doc in documents]
 
-        points = [
-            PointStruct(
-                id=uuid.uuid4().hex,
-                vector={
-                    "code": emb,
-                    "bm25": Document(text=doc.content, model=TEXT_EMBEDDING_MODEL),
-                },
-                payload={
-                    "content": doc.content,
-                    "relative_path": doc.relative_path,
-                    "start_line": doc.start_line,
-                    "end_line": doc.end_line,
-                    "file_extension": doc.file_extension,
-                    "metadata": doc.metadata,
-                },
-            )
-            for doc, emb in zip(documents, embeddings)
-        ]
+        code_embeddings = await self._create_embeddings(code_chunks)
+        explanation_embeddings = await self._get_explanations(code_chunks)
+
+        points = self._get_points(documents, code_embeddings, explanation_embeddings)
 
         try:
             self.client.upload_points(
@@ -247,7 +311,7 @@ class QdrantVectorDatabase:
         try:
             prefetch = [
                 Prefetch(
-                    query=self._create_embedding(query_text),
+                    query=await self._create_embedding(query_text),
                     using="code",
                     limit=limit * 2,
                 ),

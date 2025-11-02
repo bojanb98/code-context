@@ -185,6 +185,7 @@ class IndexingService:
                 payloads.append(payload)
 
         collection_name = get_collection_name(codebase_path)
+
         await self.vector_database.upload_documents(collection_name, payloads)
 
     async def _delete_file_chunks(
