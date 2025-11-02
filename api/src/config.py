@@ -46,7 +46,7 @@ class AppSettings(BaseSettings):
         default="api_key", description="API key in case of openai provider"
     )
     explainer_parallelism: int = Field(
-        default=8, description="Parallelism for LLM explanations"
+        default=16, description="Parallelism for LLM explanations"
     )
 
     batch_size: int = Field(default=32, description="Batch size for processing")
