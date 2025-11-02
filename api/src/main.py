@@ -32,6 +32,7 @@ logger.add(
     sys.stdout,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
     level="INFO",
+    enqueue=True
 )
 
 
@@ -45,6 +46,8 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down Code Context API")
+    await logger.complete()
+
 
 
 app = FastAPI(
