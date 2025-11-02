@@ -17,7 +17,6 @@ func Execute() error {
 
 func init() {
 	rootCmd.AddCommand(indexCmd)
-	rootCmd.AddCommand(reindexCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(unindexCmd)
 }
