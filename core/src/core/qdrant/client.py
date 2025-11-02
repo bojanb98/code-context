@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from loguru import logger
 from openai import AsyncOpenAI as OpenAI
+from openai import RateLimitError
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -20,6 +21,12 @@ from qdrant_client.models import (
     Prefetch,
     SparseVectorParams,
     VectorParams,
+)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
 )
 
 from .explainer_service import ExplainerConfig, ExplainerService
@@ -160,6 +167,19 @@ class QdrantVectorDatabase:
             logger.error("Error dropping collection '{}': {}", collection_name, e)
             raise
 
+    @retry(
+        wait=wait_exponential(min=5, max=20),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type(RateLimitError),
+    )
+    async def _generate_embeddings(
+        self, openai: OpenAI, batch: tuple[str, ...]
+    ) -> list[Embedding]:
+        response = await openai.embeddings.create(
+            input=batch, model=self.embedding.model
+        )
+        return [d.embedding for d in response.data]
+
     async def _create_embeddings(self, queries: list[str]) -> list[Embedding]:
         if self.embedding.provider == "fastembed":
             return [
@@ -173,13 +193,7 @@ class QdrantVectorDatabase:
         embeddings: list[Embedding] = []
 
         for batch in batches:
-
-            response = await openai.embeddings.create(
-                input=batch, model=self.embedding.model
-            )
-
-            for emb in response.data:
-                embeddings.append(emb.embedding)
+            embeddings.extend(await self._generate_embeddings(openai, batch))
 
         return embeddings
 

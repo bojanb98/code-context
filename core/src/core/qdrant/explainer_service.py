@@ -3,6 +3,13 @@ import itertools
 from dataclasses import dataclass
 
 from openai import AsyncOpenAI as OpenAI
+from openai import RateLimitError
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 
 @dataclass
@@ -28,6 +35,11 @@ class ExplainerService:
         if config.parallelism < 1:
             raise ValueError("Invalid parallelism")
 
+    @retry(
+        wait=wait_exponential(min=5, max=20),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type(RateLimitError),
+    )
     async def _get_explanation(self, code_chunk: str) -> str:
         response = await self.openai.chat.completions.create(
             model=self.model,
