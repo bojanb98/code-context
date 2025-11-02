@@ -6,7 +6,7 @@ Semantic code search and indexing system inspired by [@zilliz/claude-context-cor
 
 - `core/` - Python library for semantic code indexing and search using Qdrant
 - `api/` - FastAPI REST service for HTTP interface to core functionality
-- `cli/` - Go command-line tool for API interaction
+- `cli/` - Rust command-line tool for API interaction
 
 See individual README files for detailed documentation:
 - [Core Documentation](core/README.md)

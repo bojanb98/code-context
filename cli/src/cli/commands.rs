@@ -4,7 +4,11 @@ use crate::types::api::{IndexPathRequest, SearchParams};
 use crate::utils::path::to_absolute;
 use std::error::Error;
 
-pub async fn execute_index(client: &HttpClient, path: String, force: bool) -> Result<(), Box<dyn Error>> {
+pub async fn execute_index(
+    client: &HttpClient,
+    path: String,
+    force: bool,
+) -> Result<(), Box<dyn Error>> {
     let abs_path = to_absolute(&path)?;
     let request = IndexPathRequest {
         path: abs_path,
@@ -37,7 +41,7 @@ pub async fn execute_search(
     Ok(())
 }
 
-pub async fn execute_unindex(client: &HttpClient, path: String) -> Result<(), Box<dyn Error>> {
+pub async fn execute_drop(client: &HttpClient, path: String) -> Result<(), Box<dyn Error>> {
     let abs_path = to_absolute(&path)?;
     let request = IndexPathRequest {
         path: abs_path,

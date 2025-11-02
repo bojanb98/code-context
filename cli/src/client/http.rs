@@ -21,12 +21,7 @@ impl HttpClient {
 
     pub async fn post<T: Serialize>(&self, path: &str, body: &T) -> Result<String, Box<dyn Error>> {
         let url = format!("{}{}", BASE_URL, path);
-        let response = self
-            .client
-            .post(&url)
-            .json(body)
-            .send()
-            .await?;
+        let response = self.client.post(&url).json(body).send().await?;
 
         if !response.status().is_success() {
             return Err(format!("Request failed with status: {}", response.status()).into());
@@ -36,7 +31,11 @@ impl HttpClient {
         Ok(text)
     }
 
-    pub async fn get<T: Serialize>(&self, path: &str, params: &T) -> Result<String, Box<dyn Error>> {
+    pub async fn get<T: Serialize>(
+        &self,
+        path: &str,
+        params: &T,
+    ) -> Result<String, Box<dyn Error>> {
         let url = format!("{}{}", BASE_URL, path);
 
         // Convert params to query string using serde_json
@@ -48,7 +47,11 @@ impl HttpClient {
                 if let serde_json::Value::String(s) = value {
                     query_params.push(format!("{}={}", key, urlencoding::encode(&s)));
                 } else {
-                    query_params.push(format!("{}={}", key, urlencoding::encode(&value.to_string())));
+                    query_params.push(format!(
+                        "{}={}",
+                        key,
+                        urlencoding::encode(&value.to_string())
+                    ));
                 }
             }
         }
@@ -69,14 +72,13 @@ impl HttpClient {
         Ok(text)
     }
 
-    pub async fn delete<T: Serialize>(&self, path: &str, body: &T) -> Result<String, Box<dyn Error>> {
+    pub async fn delete<T: Serialize>(
+        &self,
+        path: &str,
+        body: &T,
+    ) -> Result<String, Box<dyn Error>> {
         let url = format!("{}{}", BASE_URL, path);
-        let response = self
-            .client
-            .delete(&url)
-            .json(body)
-            .send()
-            .await?;
+        let response = self.client.delete(&url).json(body).send().await?;
 
         if !response.status().is_success() {
             return Err(format!("Request failed with status: {}", response.status()).into());
