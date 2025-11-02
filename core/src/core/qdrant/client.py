@@ -1,3 +1,4 @@
+import itertools
 import ssl
 import uuid
 from dataclasses import dataclass
@@ -140,17 +141,28 @@ class QdrantVectorDatabase:
             logger.error("Error dropping collection '{}': {}", collection_name, e)
             raise
 
-    def _create_embedding(self, query: str) -> Document | list[float]:
+    def _create_embeddings(
+        self, queries: list[str]
+    ) -> list[Document] | list[list[float]]:
         if self.embedding.provider == "fastembed":
-            return Document(text=query, model=self.embedding.model)
+            return [
+                Document(text=query, model=self.embedding.model) for query in queries
+            ]
 
         openai = self._get_openai()
 
-        response = openai.embeddings.create(input=query, model=self.embedding.model)
+        batches = itertools.batched(queries, self.batch_size)
 
-        vector = response.data[0].embedding
+        embeddings: list[list[float]] = []
 
-        return vector
+        for batch in batches:
+
+            response = openai.embeddings.create(input=batch, model=self.embedding.model)
+
+            for emb in response.data:
+                embeddings.append(emb.embedding)
+
+        return embeddings
 
     async def upload_documents(
         self, collection_name: str, documents: list[VectorDocument]
@@ -166,11 +178,13 @@ class QdrantVectorDatabase:
 
         logger.info("Inserting {} documents into '{}'", len(documents), collection_name)
 
+        embeddings = self._create_embeddings([doc.content for doc in documents])
+
         points = [
             PointStruct(
                 id=uuid.uuid4().hex,
                 vector={
-                    "code": self._create_embedding(doc.content),
+                    "code": emb,
                     "bm25": Document(text=doc.content, model=TEXT_EMBEDDING_MODEL),
                 },
                 payload={
@@ -182,7 +196,7 @@ class QdrantVectorDatabase:
                     "metadata": doc.metadata,
                 },
             )
-            for doc in documents
+            for doc, emb in zip(documents, embeddings)
         ]
 
         try:

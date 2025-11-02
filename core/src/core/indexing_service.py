@@ -158,21 +158,6 @@ class IndexingService:
         await self.vector_database.create_collection(collection_name)
         logger.debug("Collection {} created successfully", collection_name)
 
-    def _matches_ignore_pattern(self, relative_path: Path) -> bool:
-        if not self.syncrhonizer_config.ignore_patterns:
-            return False
-
-        import fnmatch
-        import os
-
-        normalized_path = str(relative_path).replace(os.sep, "/")
-
-        for pattern in self.syncrhonizer_config.ignore_patterns:
-            if fnmatch.fnmatch(normalized_path, pattern):
-                return True
-
-        return False
-
     async def _process_file_list(
         self, file_paths: list[Path], codebase_path: Path
     ) -> None:
