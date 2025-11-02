@@ -1,6 +1,6 @@
 # Claude Context Extensions
 
-Semantic code search and indexing system inspired by [@zilliz/claude-context-core](https://github.com/zilliztech/claude-context-core), built with a custom Python implementation using Qdrant and FastEmbed.
+Semantic code search and indexing system inspired by [@zilliz/claude-context-core](https://github.com/zilliztech/claude-context-core), built with a custom Python implementation using Qdrant. Supports FastEmbed and OpenAI compatible API for embeddings.
 
 ## Architecture
 
@@ -22,7 +22,9 @@ cd api && uv sync && uv fastapi run src/main.py
 
 Use CLI tool:
 ```bash
-cd cli && go build -o code .
-./code index /path/to/project
-./code search /path/to/project "function handling auth"
+cd cli && go build -o context-cli .
+./context-cli index /path/to/project
+./context-cli search /path/to/project "function handling auth"
 ```
+
+CLI binary can also be downloaded from [Releases](https://github.com/bojanb98/code-context/releases).
