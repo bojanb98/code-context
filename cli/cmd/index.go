@@ -16,6 +16,12 @@ var indexCmd = &cobra.Command{
 	RunE:  runIndex,
 }
 
+var forceFlag bool
+
+func init() {
+	indexCmd.Flags().BoolVarP(&forceFlag, "force", "f", false, "Force reindexing even if already indexed")
+}
+
 func runIndex(cmd *cobra.Command, args []string) error {
 	pathArg := args[0]
 
@@ -27,7 +33,8 @@ func runIndex(cmd *cobra.Command, args []string) error {
 	client := http.NewClient()
 
 	request := http.IndexPathRequest{
-		Path: http.EscapePath(absPath),
+		Path:  http.EscapePath(absPath),
+		Force: forceFlag,
 	}
 
 	response, err := client.Post("/api/index/", request)

@@ -27,7 +27,8 @@ func NewClient() *Client {
 }
 
 type IndexPathRequest struct {
-	Path string `json:"path"`
+	Path  string `json:"path"`
+	Force bool   `json:"force"`
 }
 
 func (c *Client) Post(path string, body interface{}) ([]byte, error) {
