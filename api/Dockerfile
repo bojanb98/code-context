@@ -21,7 +21,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:3.13-slim-bookworm
 
-
 COPY --from=builder --chown=app:app /app/api /app/api
 COPY --from=builder --chown=app:app /app/.venv /app/api/.venv
 
@@ -29,4 +28,4 @@ WORKDIR /app/api/
 
 ENV PATH="/app/api/.venv/bin:$PATH"
 
-CMD [ "uvicorn", "main:app", "--app-dir", "/home/bojanb/Programming/projects/code-context/api/src", "--host", "0.0.0.0", "--port", "19531", "--log-level", "info"]
+CMD [ "uvicorn", "main:app", "--app-dir", "/home/bojanb/Programming/projects/code-context/api/src", "--host", "0.0.0.0", "--port", "8080", "--log-level", "info"]
