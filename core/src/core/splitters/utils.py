@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from tree_sitter_language_pack import SupportedLanguage
 
 LANGUAGE_EXTENSIONS: dict[str, SupportedLanguage] = {
@@ -87,3 +89,9 @@ SPLITTABLE_NODE_TYPES: dict[SupportedLanguage, list[str]] = {
         "constructor_declaration",
     ],
 }
+
+
+def is_file_supported(path: Path) -> bool:
+    if path.is_file():
+        return path.suffix is SUPPORTED_EXTENSIONS
+    return True

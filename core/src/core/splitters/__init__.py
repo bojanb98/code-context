@@ -1,6 +1,12 @@
 from .base import Splitter
 from .tree_sitter import TreeSitterSplitter
 from .types import CodeChunk
-from .utils import SUPPORTED_EXTENSIONS
+from .utils import SUPPORTED_EXTENSIONS, is_file_supported
 
-__all__ = ["TreeSitterSplitter", "Splitter", "CodeChunk", "SUPPORTED_EXTENSIONS"]
+__all__ = [
+    "TreeSitterSplitter",
+    "Splitter",
+    "CodeChunk",
+    "SUPPORTED_EXTENSIONS",
+    "is_file_supported",
+]

@@ -1,0 +1,5 @@
+TEXT_EMBEDDING_MODEL = "Qdrant/bm25"
+
+CODE_INDEX = "code"
+EXPLANATION_INDEX = "explanation"
+TEXT_INDEX = "bm25"
