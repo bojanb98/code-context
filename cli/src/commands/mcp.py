@@ -3,7 +3,7 @@ from pathlib import Path
 from core import SearchResult
 
 
-async def mcp_command() -> None:
+def mcp_command() -> None:
     """
     Start MCP server exposing search functionality.
     """

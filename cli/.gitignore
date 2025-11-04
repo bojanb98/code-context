@@ -219,4 +219,5 @@ snapshots/
 
 main.dist
 main.bin
-main.*
+main.build
+main.onefile-build
