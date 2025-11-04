@@ -5,20 +5,17 @@ description = "Semantic code search CLI"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "core",
     "cyclopts>=4.2.1",
     "rich>=14.2.0",
     "pydantic>=2.0.0",
     "mcp>=1.0.0",
     "loguru>=0.7.0",
     "pydantic-settings>=2.11.0",
+    "core",
 ]
 
 [project.scripts]
 cli = "cli.main:app"
-
-[tool.uv.sources]
-core = { path = "../core" }
 
 [tool.pyright]
 exclude = ["**/node_modules", ".venv"]
@@ -29,6 +26,9 @@ venv = ".venv"
 [tool.black]
 line-length = 88
 target-version = ["py313"]
+
+[tool.uv.sources]
+core = { path = "../core" }
 
 [build-system]
 requires = ["uv_build>=0.9.6,<0.10.0"]

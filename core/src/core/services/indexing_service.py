@@ -2,7 +2,6 @@ import itertools
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from re import L
 
 from loguru import logger
 from qdrant_client import AsyncQdrantClient, models
@@ -91,6 +90,7 @@ class IndexingService:
         results = await self.synchronizer.check_for_changes(codebase_path)
 
         if results.num_changes == 0:
+            logger.debug("No changes found")
             return
 
         await self._delete_file_chunks(collection_name, results.to_remove)
@@ -112,7 +112,7 @@ class IndexingService:
             explanations = Explanations(explanation_texts, explanation_embeddings)
 
         points = await self._get_points(chunks, code_embeddings, explanations)
-        self.client.upload_points(collection_name, points)
+        await self.client.upsert(collection_name, points)
 
     async def _get_points(
         self,

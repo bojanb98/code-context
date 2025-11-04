@@ -4,7 +4,7 @@ from pathlib import Path
 from loguru import logger
 from qdrant_client import AsyncQdrantClient, models
 
-from .constants import CODE_INDEX, EXPLANATION_INDEX, TEXT_INDEX
+from .constants import CODE_INDEX, EXPLANATION_INDEX, TEXT_EMBEDDING_MODEL, TEXT_INDEX
 from .utils import EmbeddingService, get_collection_name
 
 
@@ -49,7 +49,7 @@ class SearchService:
                 limit=limit * 2,
             ),
             models.Prefetch(
-                query=models.Document(text=query_text, model=TEXT_INDEX),
+                query=models.Document(text=query_text, model=TEXT_EMBEDDING_MODEL),
                 using=TEXT_INDEX,
                 limit=limit * 2,
             ),

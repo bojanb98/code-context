@@ -56,6 +56,7 @@ async def search_command(
     path: Path = Path("."),
     limit: int = 5,
     output: OutputType = "simple",
+    threshold: float = 0.0,
 ) -> None:
     """Search indexed code semantically.
 
@@ -73,6 +74,6 @@ async def search_command(
 
     search_service = services.get_search_service()
 
-    results = await search_service.search(path, query, top_k=limit)
+    results = await search_service.search(path, query, top_k=limit, threshold=threshold)
 
     print_results(results, output)
