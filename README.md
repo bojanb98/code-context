@@ -1,31 +1,32 @@
-# Claude Context Extensions
+# Code Context
 
-Semantic code search and indexing system inspired by [@zilliz/claude-context-core](https://github.com/zilliztech/claude-context-core), built with a custom Python implementation using Qdrant. Supports FastEmbed and OpenAI compatible API for embeddings.
+Semantic code search and indexing system built with Python. Provides AI-powered code search through vector embeddings and hybrid search capabilities.
 
 ## Architecture
 
-- `core/` - Python library for semantic code indexing and search using Qdrant
-- `api/` - FastAPI REST service for HTTP interface to core functionality
-- `cli/` - Rust command-line tool for API interaction
+- `core/` - Python library for semantic code indexing and search
+- `cli/` - Command-line interface for indexing and searching
 
 See individual README files for detailed documentation:
 - [Core Documentation](core/README.md)
-- [API Documentation](api/README.md)
 - [CLI Documentation](cli/README.md)
 
 ## Quick Usage
 
-Start API service:
+Install and configure CLI:
 ```bash
-cd api && uv sync && uv fastapi run src/main.py
+cd cli && uv sync
+./src/main.py init                    # Configure embedding service and Qdrant
 ```
 
-Use CLI tool:
+Index and search code:
 ```bash
-cd cli && go build -o code .
-./code index [path]                    # Index current directory or specified path
-./code search "query" [path]           # Search in current directory or specified path
-./code drop [path]                     # Remove current directory or specified path from index
+./src/main.py index [path]            # Index current directory or specified path
+./src/main.py search "query" [path]   # Search in current directory or specified path
+./src/main.py drop [path]             # Remove current directory or specified path from index
 ```
 
-CLI binary can also be downloaded from [Releases](https://github.com/bojanb98/code-context/releases).
+MCP server support:
+```bash
+./src/main.py mcp                     # Start MCP server for tool integration
+```

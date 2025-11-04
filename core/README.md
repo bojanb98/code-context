@@ -1,6 +1,6 @@
-# Claude Context Core - Python Implementation
+# Code Context Core
 
-Python implementation of Claude Context Core using Qdrant for vector storage with support for both FastEmbed and OpenAI-compatible embedding providers for semantic code search and indexing.
+Python library for semantic code search and indexing. Provides vector-based code search with hybrid capabilities and incremental indexing.
 
 ## Installation
 
@@ -12,52 +12,41 @@ uv sync
 
 ```python
 import asyncio
-from core import Context
-from core.qdrant import QdrantConfig, EmbeddingConfig
-from core.indexing_service import IndexingConfig
-from core.sync import SynchronizerConfig
+from pathlib import Path
+from qdrant_client import AsyncQdrantClient
+from core import (
+    EmbeddingService,
+    SearchService,
+    IndexingService,
+    TreeSitterSplitter,
+    FileSynchronizer
+)
 
 async def main():
-    # Configure embedding provider (FastEmbed)
-    embedding_config = EmbeddingConfig(
-        model="sentence-transformers/all-MiniLM-L6-v2",
-        provider="fastembed"
+    # Initialize services
+    client = AsyncQdrantClient(url="http://localhost:6333")
+    embedding_service = EmbeddingService("http://localhost:11434/v1", "ollama")
+    synchronizer = FileSynchronizer("./snapshots")
+    splitter = TreeSitterSplitter(chunk_size=2500, chunk_overlap=300)
+
+    indexing_service = IndexingService(client, synchronizer)
+    search_service = SearchService(
+        client,
+        embedding_service,
+        embedding_model="vuongnguyen2212/CodeRankEmbed",
+        explainer_embedding_model="hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:F16"
     )
-
-    # Or use OpenAI-compatible provider
-    # embedding_config = EmbeddingConfig(
-    #     model="text-embedding-3-small",
-    #     provider="openai",
-    #     url="https://api.openai.com/v1",
-    #     api_key="your-openai-api-key",
-    #     size=1536
-    # )
-
-    qdrant_config = QdrantConfig(
-        embedding=embedding_config,
-        location="memory"
-    )
-
-    sync_config = SynchronizerConfig(
-        snapshot_dir="./snapshots",
-        ignore_patterns=["node_modules/**", "*.test.py"]
-    )
-
-    indexing_config = IndexingConfig(
-        batch_size=32,
-        chunk_size=2500,
-        chunk_overlap=300,
-        synchronizer_config=sync_config
-    )
-
-    context = Context(qdrant_config, indexing_config)
 
     # Index a codebase
-    await context.index("./my-project")
+    await indexing_service.index(
+        Path("./my-project"),
+        splitter,
+        embedding_config
+    )
 
     # Search the codebase
-    results = await context.search(
-        "./my-project",
+    results = await search_service.search(
+        Path("./my-project"),
         "function that handles user authentication",
         top_k=5
     )
@@ -71,146 +60,92 @@ async def main():
 asyncio.run(main())
 ```
 
-## Configuration
+## Core Components
 
-### Embedding Configuration
+### Services
 
-Choose between FastEmbed (local) or OpenAI-compatible providers:
+- **IndexingService**: Orchestrates file processing and vector storage
+- **SearchService**: Handles semantic search queries with hybrid capabilities
+- **EmbeddingService**: Manages embedding generation via OpenAI-compatible APIs
+- **ExplainerService**: Provides code explanations using LLMs
+- **FileSynchronizer**: Handles incremental updates with change detection
 
-```python
-from core.qdrant import QdrantConfig, EmbeddingConfig
+### Splitters
 
-# FastEmbed (local, free)
-fastembed_config = EmbeddingConfig(
-    model="sentence-transformers/all-MiniLM-L6-v2",
-    provider="fastembed"
-)
+- **TreeSitterSplitter**: Language-aware code splitting using tree-sitter parsers
+- **BaseSplitter**: Abstract base for custom splitters
 
-# OpenAI-compatible (requires API key and URL)
-openai_config = EmbeddingConfig(
-    model="text-embedding-3-small",
-    provider="openai",
-    url="https://api.openai.com/v1",
-    api_key="your-api-key",
-    size=1536  # Embedding dimension
-)
-```
+### Utilities
 
-### Vector Database Configuration
-
-```python
-from core.qdrant import QdrantConfig
-
-qdrant_config = QdrantConfig(
-    embedding=embedding_config,  # EmbeddingConfig from above
-    location="memory",  # "memory" or "server"
-    url="https://your-cluster.cloud.qdrant.io:6333",  # For server
-    api_key="your-qdrant-api-key",  # For server
-    batch_size=32
-)
-```
-
-### Indexing Configuration
-
-```python
-from core.indexing_service import IndexingConfig
-from core.sync import SynchronizerConfig
-
-sync_config = SynchronizerConfig(
-    snapshot_dir="./snapshots",
-    ignore_patterns=[
-        "node_modules/**",
-        "*.test.py",
-        "*.spec.js",
-        "dist/**",
-        "build/**"
-    ]
-)
-
-indexing_config = IndexingConfig(
-    batch_size=32,
-    chunk_size=2500,
-    chunk_overlap=300,
-    synchronizer_config=sync_config
-)
-```
+- **CollectionName**: Generates unique collection names per project
+- **Embedding**: Type definitions for embedding vectors
 
 ## API
 
-### Context Class
+### Main Classes
 
-The main entry point for all operations:
+#### IndexingService
+```python
+async def index(
+    self,
+    path: Path,
+    splitter: TreeSitterSplitter,
+    embedding_config: EmbeddingConfig,
+    force_reindex: bool = False
+) -> None
+```
 
-- `index(path, force_reindex=False)`: Index codebase for search with intelligent incremental updates
-- `search(path, query, top_k=5, threshold=0.0)`: Search indexed code semantically
-- `has_index(path)`: Check if codebase is indexed
-- `clear_index(path)`: Remove index data completely
+#### SearchService
+```python
+async def search(
+    self,
+    path: Path,
+    query: str,
+    top_k: int = 5,
+    threshold: float = 0.0
+) -> list[SearchResult]
+```
+
+#### EmbeddingService
+```python
+async def generate_embedding(self, query: str, model: str) -> Embedding
+async def generate_embeddings(
+    self,
+    queries: list[str],
+    model: str,
+    batch_size: int = 32
+) -> list[Embedding]
+```
 
 ### Data Models
 
 ```python
 @dataclass
 class SearchResult:
-    """Single search result with metadata"""
     content: str           # Code chunk content
     relative_path: str     # Relative file path
     start_line: int        # Start line number
     end_line: int          # End line number
     language: str          # Programming language
     score: float           # Similarity score (0-1)
+    explanation: str | None = None  # Code explanation if enabled
 
 @dataclass
 class EmbeddingConfig:
-    """Configuration for embedding providers"""
+    service: EmbeddingService
     model: str
-    provider: Literal["fastembed", "openai"] = "fastembed"
-    url: str | None = None          # Required for openai provider
-    api_key: str = ""              # Required for openai provider
-    size: int | None = None        # Required for openai provider
-
-@dataclass
-class QdrantConfig:
-    """Configuration for Qdrant vector database"""
-    embedding: EmbeddingConfig
-    location: Literal["memory", "server"] = "memory"
-    url: str | None = None
-    api_key: str | None = None
-    batch_size: int = 32
-```
-
-## Search Capabilities
-
-The system supports hybrid search combining:
-
-- **Semantic Search**: Vector similarity using embeddings
-- **Keyword Search**: BM25 sparse vector search
-- **Hybrid Fusion**: Uses Reciprocal Rank Fusion (RRF)
-
-```python
-# Basic semantic search
-results = await context.search("./codebase", "user authentication")
-
-# With similarity threshold (only return high-quality matches)
-results = await context.search("./codebase", "API endpoints", threshold=0.7)
-
-# Limit number of results
-results = await context.search("./codebase", "error handling", top_k=3)
+    size: int | None = None
 ```
 
 ## Supported Languages
 
 JavaScript, TypeScript, Python, Java, C/C++, C#, Go, Rust, Scala, PHP, Ruby, Swift, Kotlin
 
-**Language Detection**: Automatically detected from file extensions using tree-sitter parsers.
+Language detection is automatic based on file extensions using tree-sitter parsers.
 
-## Architecture
+## Features
 
-The system is built with modular components:
-
-- **Embedding Providers**: Pluggable embedding generation (FastEmbed, OpenAI-compatible)
-- **Vector Database**: Qdrant client with hybrid search capabilities
-- **Code Splitters**: Tree-sitter based language-aware code splitting with fallback
-- **File Synchronization**: Merkle tree-based change detection for incremental updates
-- **Indexing Service**: Orchestrates file processing and vector storage
-- **Search Service**: Handles query processing and result ranking
-- **Context**: Main public API coordinating all services
+- **Hybrid Search**: Combines semantic similarity and keyword matching
+- **Incremental Updates**: Merkle tree-based change detection
+- **Language-Aware Splitting**: Context-preserving code chunking
+- **Async Operations**: Full async/await support

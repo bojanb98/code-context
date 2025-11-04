@@ -1,4 +1,4 @@
-name: Rust CLI Release
+name: CLI release (Nuitka + uv)
 
 on:
   release:
@@ -9,27 +9,105 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            name: code-linux-x86_64.bin
+          - os: windows-latest
             name: code-windows-x86_64.exe
-          - target: x86_64-unknown-linux-gnu
-            name: code-linux-x86_64
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
         with:
-          targets: ${{ matrix.target }}
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: |
+            **/pyproject.toml
+            **/uv.lock
 
-      - name: Build binary
+      - name: Install uv (astral)
+        uses: astral-sh/setup-uv@v1
+
+      - name: Create project virtualenv (./.venv)
+        if: runner.os != 'Windows'
+        run: python -m venv .venv
+
+      - name: Create project virtualenv (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: python -m venv .venv
+
+      - name: uv sync into .venv (Linux / macOS)
+        if: runner.os != 'Windows'
+        working-directory: ./cli
+        env:
+          VIRTUAL_ENV: ${{ github.workspace }}/.venv
         run: |
-          cd cli
-          cargo build --release --target ${{ matrix.target }}
+          set -e
+          # Make sure uv uses the created venv
+          uv sync --no-group dev
+
+      - name: uv sync into .venv (Windows)
+        if: runner.os == 'Windows'
+        working-directory: ./cli
+        shell: pwsh
+        env:
+          VIRTUAL_ENV: ${{ github.workspace }}\.venv
+        run: |
+          uv sync --no-group dev
+
+      - name: Build with Nuitka action (Linux/macOS)
+        if: runner.os != 'Windows'
+        uses: Nuitka/Nuitka-Action@main
+        env:
+          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
+        with:
+          nuitka-version: main
+          script-name: cli/src/main.py
+          mode: onefile
+          output-dir: cli/dist
+
+      - name: Build with Nuitka action (Windows)
+        if: runner.os == 'Windows'
+        uses: Nuitka/Nuitka-Action@main
+        env:
+          PATH: ${{ github.workspace }}\\.venv\\Scripts;${{ env.PATH }}
+        with:
+          nuitka-version: main
+          script-name: cli/src/main.py
+          mode: onefile
+          output-dir: cli\\dist
+
+      - name: Locate built artifact and standardize name (Linux)
+        if: runner.os != 'Windows'
+        run: |
+          set -e
+          mkdir -p cli/dist
+          outfile=$(find cli/dist -type f -print -quit || true)
+          if [ -z "$outfile" ]; then
+            echo "No artifact found in cli/dist; listing files for debug:" >&2
+            ls -la cli || true
+            ls -la cli/dist || true
+            exit 1
+          fi
+          cp "$outfile" "cli/dist/${{ matrix.name }}"
+          echo "artifact=cli/dist/${{ matrix.name }}" >> $GITHUB_ENV
+
+      - name: Locate built artifact and standardize name (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path cli\dist | Out-Null
+          $outfile = Get-ChildItem -Path .\cli\dist -File -Recurse | Select-Object -First 1
+          if (-not $outfile) { Write-Error "No artifact found in cli\\dist"; Get-ChildItem -Path .\cli -Recurse | Select-Object -First 50; exit 1 }
+          Copy-Item $outfile.FullName -Destination (Join-Path -Path (Resolve-Path cli\dist) -ChildPath '${{ matrix.name }}')
+          echo "artifact=cli\\dist\\${{ matrix.name }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload release asset
         uses: actions/upload-release-asset@v1
@@ -37,6 +115,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./cli/target/${{ matrix.target }}/release/${{ matrix.name }}
+          asset_path: ${{ env.artifact }}
           asset_name: ${{ matrix.name }}
           asset_content_type: application/octet-stream
+
