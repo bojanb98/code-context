@@ -11,7 +11,7 @@ from core import (
 from loguru import logger
 from qdrant_client import AsyncQdrantClient
 
-from .config import AppSettings
+from config import AppSettings
 
 
 class ServiceFactory:

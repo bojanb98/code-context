@@ -66,8 +66,8 @@ async def search_command(
         limit: Maximum number of results to return (1-50)
         output: Output format: simple (default), json (full details), simple-json (content only)
     """
-    from cli.config import load_config
-    from cli.service_factory import ServiceFactory
+    from config import load_config
+    from service_factory import ServiceFactory
 
     settings = load_config()
     services = ServiceFactory(settings)

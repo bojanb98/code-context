@@ -10,8 +10,8 @@ async def mcp_command() -> None:
     from mcp.server.fastmcp import FastMCP
     from pydantic import PositiveInt
 
-    from cli.config import load_config
-    from cli.service_factory import ServiceFactory
+    from config import load_config
+    from service_factory import ServiceFactory
 
     settings = load_config()
     services = ServiceFactory(settings)

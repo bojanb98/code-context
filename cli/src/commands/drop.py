@@ -9,8 +9,8 @@ async def drop_command(
     Args:
         path: Path to the codebase to remove from index (defaults to current directory)
     """
-    from cli.config import load_config
-    from cli.service_factory import ServiceFactory
+    from config import load_config
+    from service_factory import ServiceFactory
 
     settings = load_config()
     services = ServiceFactory(settings)

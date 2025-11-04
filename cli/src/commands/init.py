@@ -4,7 +4,7 @@ async def init_command() -> None:
     from rich import print, print_json
     from rich.prompt import Confirm, IntPrompt, Prompt
 
-    from cli.config import DEFAULT_CONFIG_PATH, AppSettings, save_config
+    from config import DEFAULT_CONFIG_PATH, AppSettings, save_config
 
     if DEFAULT_CONFIG_PATH.exists():
         if not Confirm.ask(

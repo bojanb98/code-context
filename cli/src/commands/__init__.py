@@ -11,4 +11,3 @@ __all__ = [
     "index_command",
     "init_command",
 ]
-
