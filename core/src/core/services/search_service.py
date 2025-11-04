@@ -125,7 +125,8 @@ class SearchService:
         if not (0.0 <= threshold <= 1.0):
             raise ValueError("threshold must be between 0.0 and 1.0")
 
-        codebase_path = codebase_path.resolve()
+        codebase_path = codebase_path.expanduser().absolute().resolve()
+
         collection_name = get_collection_name(codebase_path)
 
         logger.debug("Searching in codebase: {}", codebase_path)

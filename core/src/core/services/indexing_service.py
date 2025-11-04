@@ -2,6 +2,7 @@ import itertools
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from re import L
 
 from loguru import logger
 from qdrant_client import AsyncQdrantClient, models
@@ -45,6 +46,8 @@ class IndexingService:
         self.synchronizer = file_syncrhonizer
 
     async def delete(self, codebase_path: Path) -> None:
+        codebase_path = codebase_path.expanduser().absolute().resolve()
+
         collection_name = get_collection_name(codebase_path)
         collection_exists = await self.client.collection_exists(collection_name)
 
@@ -70,7 +73,10 @@ class IndexingService:
         Returns:
             IndexingStats with information about the indexing operation
         """
-        codebase_path = codebase_path.resolve()
+        codebase_path = codebase_path.expanduser().absolute().resolve()
+
+        if not codebase_path.exists():
+            raise RuntimeError("Invalid path")
 
         logger.debug("Starting indexing for codebase: {}", codebase_path)
 
