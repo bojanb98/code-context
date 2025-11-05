@@ -31,13 +31,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Build core
+      - id: build_core
+        name: Build core
         working-directory: ./core
         run: |
           uv sync --no-dev
           uv build
-          wheel_file=$(ls -t dist/*.whl | head -n1)
-          echo "wheel_file=$(basename "$wheel_file")" >> "$GITHUB_OUTPUT"
+          cd dist
+          wheel_file=$(ls -t *.whl | head -n1)
+          echo "wheel_file=$wheel_file" >> "$GITHUB_OUTPUT"
 
       - name: Generate requirements.txt
         working-directory: ./cli
