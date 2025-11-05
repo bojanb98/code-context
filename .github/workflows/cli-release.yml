@@ -49,7 +49,7 @@ jobs:
       - name: Install requirements
         run: |
           pip install ./core/dist/${{ steps.build_core.outputs.wheel_file }}
-          pip install -r requirements.txt
+          pip install -r ./cli/requirements.txt
 
       - name: Build Executable with Nuitka
         uses: Nuitka/Nuitka-Action@main
