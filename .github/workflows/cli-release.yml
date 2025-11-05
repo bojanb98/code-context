@@ -1,4 +1,4 @@
-name: CLI release (Nuitka + uv)
+name: CLI release
 
 on:
   release:
