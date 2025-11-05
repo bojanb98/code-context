@@ -50,8 +50,7 @@ jobs:
           VIRTUAL_ENV: ${{ github.workspace }}/.venv
         run: |
           set -e
-          # Make sure uv uses the created venv
-          uv sync --no-group dev
+          uv sync --no-dev
 
       - name: uv sync into .venv (Windows)
         if: runner.os == 'Windows'
@@ -60,7 +59,7 @@ jobs:
         env:
           VIRTUAL_ENV: ${{ github.workspace }}\.venv
         run: |
-          uv sync --no-group dev
+          uv sync --no-dev
 
       - name: Build with Nuitka action (Linux/macOS)
         if: runner.os != 'Windows'
@@ -118,4 +117,3 @@ jobs:
           asset_path: ${{ env.artifact }}
           asset_name: ${{ matrix.name }}
           asset_content_type: application/octet-stream
-
