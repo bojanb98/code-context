@@ -14,9 +14,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            name: code-linux-x86_64.bin
+            name: code-context-x86_64.bin
           - os: windows-latest
-            name: code-windows-x86_64.exe
+            name: code-context-x86_64.exe
 
     steps:
       - name: Checkout repository
