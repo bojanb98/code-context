@@ -34,86 +34,35 @@ jobs:
       - name: Install uv (astral)
         uses: astral-sh/setup-uv@v1
 
-      - name: Create project virtualenv (./.venv)
-        if: runner.os != 'Windows'
-        run: python -m venv .venv
-
-      - name: Create project virtualenv (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: python -m venv .venv
-
-      - name: uv sync into .venv (Linux / macOS)
-        if: runner.os != 'Windows'
-        working-directory: ./cli
-        env:
-          VIRTUAL_ENV: ${{ github.workspace }}/.venv
-        run: |
-          set -e
-          uv sync --no-dev
-
-      - name: uv sync into .venv (Windows)
-        if: runner.os == 'Windows'
-        working-directory: ./cli
-        shell: pwsh
-        env:
-          VIRTUAL_ENV: ${{ github.workspace }}\.venv
+      - name: Build core
+        working-directory: ./core
         run: |
           uv sync --no-dev
+          uv build
+          wheel_file=$(ls -t dist/*.whl | head -n1)
+          echo "wheel_file=$(basename "$wheel_file")" >> "$GITHUB_OUTPUT"
 
-      - name: Build with Nuitka action (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Generate requirements.txt
+        working-directory: ./cli
+        run: |
+          uv export --no-dev --no-emit-package core > requirements.txt
+
+      - name: Install requirements
+        run: |
+          pip install ./core/dist/${{ steps.build_core.outputs.wheel_file }}
+          pip install -r requirements.txt
+
+      - name: Build Executable with Nuitka
         uses: Nuitka/Nuitka-Action@main
-        env:
-          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
         with:
           nuitka-version: main
-          script-name: cli/src/main.py
+          script-name: ./cli/src/main.py
           mode: onefile
-          output-dir: cli/dist
 
-      - name: Build with Nuitka action (Windows)
-        if: runner.os == 'Windows'
-        uses: Nuitka/Nuitka-Action@main
-        env:
-          PATH: ${{ github.workspace }}\\.venv\\Scripts;${{ env.PATH }}
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          nuitka-version: main
-          script-name: cli/src/main.py
-          mode: onefile
-          output-dir: cli\\dist
-
-      - name: Locate built artifact and standardize name (Linux)
-        if: runner.os != 'Windows'
-        run: |
-          set -e
-          mkdir -p cli/dist
-          outfile=$(find cli/dist -type f -print -quit || true)
-          if [ -z "$outfile" ]; then
-            echo "No artifact found in cli/dist; listing files for debug:" >&2
-            ls -la cli || true
-            ls -la cli/dist || true
-            exit 1
-          fi
-          cp "$outfile" "cli/dist/${{ matrix.name }}"
-          echo "artifact=cli/dist/${{ matrix.name }}" >> $GITHUB_ENV
-
-      - name: Locate built artifact and standardize name (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path cli\dist | Out-Null
-          $outfile = Get-ChildItem -Path .\cli\dist -File -Recurse | Select-Object -First 1
-          if (-not $outfile) { Write-Error "No artifact found in cli\\dist"; Get-ChildItem -Path .\cli -Recurse | Select-Object -First 50; exit 1 }
-          Copy-Item $outfile.FullName -Destination (Join-Path -Path (Resolve-Path cli\dist) -ChildPath '${{ matrix.name }}')
-          echo "artifact=cli\\dist\\${{ matrix.name }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Upload release asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ env.artifact }}
-          asset_name: ${{ matrix.name }}
-          asset_content_type: application/octet-stream
+          name: ${{ runner.os }} Build
+          path: |
+            build/*.exe
+            build/*.bin
