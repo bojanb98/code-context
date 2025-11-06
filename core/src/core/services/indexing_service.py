@@ -28,7 +28,6 @@ class EmbeddingConfig:
 @dataclass
 class ExplainerConfig:
     service: ExplainerService
-    model: str
     embedding: EmbeddingConfig
 
 
@@ -105,9 +104,7 @@ class IndexingService:
             )
             explanations: Explanations | None = None
             if explainer is not None:
-                explanation_texts = await explainer.service.get_explanations(
-                    contents, explainer.model
-                )
+                explanation_texts = await explainer.service.get_explanations(contents)
                 explanation_embeddings = (
                     await explainer.embedding.service.generate_embeddings(
                         explanation_texts, explainer.embedding.model

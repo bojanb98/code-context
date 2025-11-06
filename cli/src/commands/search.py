@@ -74,6 +74,8 @@ async def search_command(
 
     search_service = services.get_search_service()
 
-    results = await search_service.search(path, query, top_k=limit, threshold=threshold)
+    results = await search_service.search(
+        path, query, settings.explainer.enabled, top_k=limit, threshold=threshold
+    )
 
     print_results(results, output)

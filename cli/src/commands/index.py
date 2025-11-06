@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from core import ExplainerConfig
+
 
 async def index_command(
     path: Path = Path("."),
@@ -28,4 +30,20 @@ async def index_command(
         size=settings.embedding.size,
     )
 
-    await indexing_service.index(path, splitter, embedding_config, force_reindex=force)
+    explainer_service = services.get_explainer_service()
+
+    explainer_config: ExplainerConfig | None = None
+
+    if explainer_service is not None:
+        explainer_config = ExplainerConfig(
+            service=explainer_service,
+            embedding=EmbeddingConfig(
+                service=services.get_embedding_service(),
+                model=settings.explainer.embedding.model,
+                size=settings.explainer.embedding.size,
+            ),
+        )
+
+    await indexing_service.index(
+        path, splitter, embedding_config, explainer_config, force
+    )

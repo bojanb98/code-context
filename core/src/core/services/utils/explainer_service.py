@@ -19,9 +19,12 @@ class ExplainerService:
 
     _DEFAULT_EXPLANATION: str = "unknown"
 
-    def __init__(self, base_url: str, api_key: str, parallelism: int = 1) -> None:
+    def __init__(
+        self, base_url: str, api_key: str, model: str, parallelism: int = 1
+    ) -> None:
         self.openai = AsyncOpenAI(base_url=base_url, api_key=api_key)
         self.parallelism = parallelism
+        self.model = model
 
     @retry(
         wait=wait_exponential(min=5, max=20),
@@ -29,9 +32,9 @@ class ExplainerService:
         retry=retry_if_exception_type(RateLimitError),
         before_sleep=lambda x: logger.warning("Rate limit hit {} {}", x.fn, x.args),
     )
-    async def _get_explanation(self, code_chunk: str, model: str) -> str:
+    async def _get_explanation(self, code_chunk: str) -> str:
         response = await self.openai.chat.completions.create(
-            model=model,
+            model=self.model,
             messages=[
                 {"role": "system", "content": ExplainerService._SYSTEM_PROMPT},
                 {"role": "user", "content": code_chunk},
@@ -42,33 +45,28 @@ class ExplainerService:
             return ExplainerService._DEFAULT_EXPLANATION
         return explanation
 
-    async def _get_sync_explanations(
-        self, code_chunks: list[str], model: str
-    ) -> list[str]:
+    async def _get_sync_explanations(self, code_chunks: list[str]) -> list[str]:
         explanations: list[str] = []
         for code in code_chunks:
-            explanations.append(await self._get_explanation(code, model))
+            explanations.append(await self._get_explanation(code))
 
         return explanations
 
-    async def _get_parallel_explanations(
-        self, code_chunks: list[str], model: str
-    ) -> list[str]:
+    async def _get_parallel_explanations(self, code_chunks: list[str]) -> list[str]:
         batches = itertools.batched(code_chunks, self.parallelism)
 
         explanations: list[str] = []
 
         for batch in batches:
             tasks = [
-                asyncio.create_task(self._get_explanation(chunk, model))
-                for chunk in batch
+                asyncio.create_task(self._get_explanation(chunk)) for chunk in batch
             ]
             results = await asyncio.gather(*tasks)
             explanations.extend(results)
 
         return explanations
 
-    async def get_explanations(self, code_chunks: list[str], model: str) -> list[str]:
+    async def get_explanations(self, code_chunks: list[str]) -> list[str]:
         if self.parallelism == 1:
-            return await self._get_sync_explanations(code_chunks, model)
-        return await self._get_parallel_explanations(code_chunks, model)
+            return await self._get_sync_explanations(code_chunks)
+        return await self._get_parallel_explanations(code_chunks)

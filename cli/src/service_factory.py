@@ -71,9 +71,14 @@ class ServiceFactory:
         return self._embedding_service
 
     def get_explainer_service(self) -> ExplainerService | None:
+        if not self.settings.explainer.enabled:
+            return None
+
         if not self._explainer_service:
             self._explainer_service = ExplainerService(
-                str(self.settings.explainer.url), self.settings.explainer.api_key
+                str(self.settings.explainer.url),
+                self.settings.explainer.api_key,
+                self.settings.explainer.model,
             )
         return self._explainer_service
 
@@ -102,6 +107,6 @@ class ServiceFactory:
                 self.get_client(),
                 self.get_embedding_service(),
                 self.settings.embedding.model,
-                self.settings.explainer.embedding_model,
+                self.settings.explainer.embedding.model,
             )
         return self._search_service
