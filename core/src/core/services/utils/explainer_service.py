@@ -1,6 +1,7 @@
 import asyncio
 import itertools
 
+from loguru import logger
 from openai import AsyncOpenAI, RateLimitError
 from tenacity import (
     retry,
@@ -26,6 +27,7 @@ class ExplainerService:
         wait=wait_exponential(min=5, max=20),
         stop=stop_after_attempt(3),
         retry=retry_if_exception_type(RateLimitError),
+        before_sleep=lambda x: logger.warning("Rate limit hit {} {}", x.fn, x.args),
     )
     async def _get_explanation(self, code_chunk: str, model: str) -> str:
         response = await self.openai.chat.completions.create(

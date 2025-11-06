@@ -32,7 +32,7 @@ class SearchService:
         self.code_model = code_model
         self.explanation_model = explanation_model
 
-    async def _preform_search(
+    async def _perform_search(
         self,
         collection_name: str,
         query_text: str,
@@ -84,7 +84,7 @@ class SearchService:
                     relative_path=payload.get("relative_path", ""),
                     start_line=payload.get("start_line", 0),
                     end_line=payload.get("end_line", 0),
-                    language=payload.get("metadata", {}).get("language", "unknown"),
+                    language=payload.get("language", "unknown"),
                     score=point.score,
                 )
             )
@@ -142,7 +142,7 @@ class SearchService:
             )
 
         logger.debug("Searching with query: '{}'", query)
-        results = await self._preform_search(
+        results = await self._perform_search(
             collection_name, query, has_explanations, top_k, threshold
         )
 

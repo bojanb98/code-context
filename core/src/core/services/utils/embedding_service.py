@@ -1,5 +1,6 @@
 import itertools
 
+from loguru import logger
 from openai import AsyncOpenAI, RateLimitError
 from tenacity import (
     retry,
@@ -20,11 +21,22 @@ class EmbeddingService:
         wait=wait_exponential(min=5, max=20),
         stop=stop_after_attempt(3),
         retry=retry_if_exception_type(RateLimitError),
+        before_sleep=lambda x: logger.warning("Rate limit hit {} {}", x.fn, x.args),
     )
     async def generate_embedding(self, query: str, model: str) -> Embedding:
         response = await self.openai.embeddings.create(input=query, model=model)
 
         return response.data[0].embedding
+
+    @retry(
+        wait=wait_exponential(min=5, max=20),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type(RateLimitError),
+        before_sleep=lambda x: logger.warning("Rate limit hit {} {}", x.fn, x.args),
+    )
+    async def _get_embeddings(self, queries: list[str], model) -> list[Embedding]:
+        response = await self.openai.embeddings.create(input=queries, model=model)
+        return [d.embedding for d in response.data]
 
     async def generate_embeddings(
         self, queries: list[str], model: str, batch_size: int = 32

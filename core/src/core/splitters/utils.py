@@ -93,5 +93,5 @@ SPLITTABLE_NODE_TYPES: dict[SupportedLanguage, list[str]] = {
 
 def is_file_supported(path: Path) -> bool:
     if path.is_file():
-        return path.suffix is SUPPORTED_EXTENSIONS
+        return path.suffix in SUPPORTED_EXTENSIONS
     return True

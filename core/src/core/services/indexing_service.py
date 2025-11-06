@@ -1,6 +1,7 @@
 import itertools
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from loguru import logger
@@ -140,7 +141,8 @@ class IndexingService:
                         "relative_path": chunk.file_path,
                         "start_line": chunk.start_line,
                         "end_line": chunk.end_line,
-                        "file_extension": chunk.language,
+                        "language": chunk.language,
+                        "indexed_at": datetime.now(timezone.utc),
                     },
                 )
                 for chunk, emb in zip(chunks, embeddings)
@@ -160,8 +162,9 @@ class IndexingService:
                     "relative_path": chunk.file_path,
                     "start_line": chunk.start_line,
                     "end_line": chunk.end_line,
-                    "file_extension": chunk.language,
+                    "language": chunk.language,
                     "explanation": exp_text,
+                    "indexed_at": datetime.now(timezone.utc),
                 },
             )
             for chunk, code_emb, exp_text, exp_emb in zip(

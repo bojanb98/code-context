@@ -3,7 +3,7 @@ import hashlib
 import os
 from pathlib import Path
 
-from core.splitters import SUPPORTED_EXTENSIONS
+from core.splitters import is_file_supported
 
 from .types import FileRecord
 
@@ -25,7 +25,7 @@ def _should_ignore(
     if any(part.startswith(".") for part in relative_path.parts):
         return True
 
-    if not is_directory and relative_path.suffix not in SUPPORTED_EXTENSIONS:
+    if not is_directory and not is_file_supported(relative_path):
         return True
 
     if not ignore_patterns:
