@@ -6,7 +6,6 @@ from .types import CodeChunk
 
 
 class Splitter(Protocol):
-    """Protocol for code splitters."""
 
     async def split(self, code: str, file_path: Path) -> list[CodeChunk]:
         """Split code into chunks.
@@ -39,15 +38,8 @@ class Splitter(Protocol):
 
 
 class BaseSplitter(ABC):
-    """Abstract base class for splitters."""
 
     def __init__(self, chunk_size: int = 2500, chunk_overlap: int = 300) -> None:
-        """Initialize splitter.
-
-        Args:
-            chunk_size: Maximum chunk size in characters
-            chunk_overlap: Overlap size in characters
-        """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 

@@ -10,15 +10,8 @@ from .utils import LANGUAGE_EXTENSIONS, SPLITTABLE_NODE_TYPES
 
 
 class TreeSitterSplitter(BaseSplitter):
-    """Tree-sitter based code splitter with fallback to text splitting."""
 
     def __init__(self, chunk_size: int = 2500, chunk_overlap: int = 300) -> None:
-        """Initialize tree-sitter splitter.
-
-        Args:
-            chunk_size: Maximum chunk size in characters
-            chunk_overlap: Overlap size in characters
-        """
         super().__init__(chunk_size, chunk_overlap)
         self._parsers: dict[SupportedLanguage, Parser] = {}
 
@@ -89,7 +82,6 @@ class TreeSitterSplitter(BaseSplitter):
             raise RuntimeError("Invalid splittable types for %s", lang)
 
         def traverse(current_node: Node) -> None:
-            """Recursively traverse AST nodes."""
             if current_node.type in splittable_types:
                 start_line = current_node.start_point[0] + 1
                 end_line = current_node.end_point[0] + 1
@@ -139,9 +131,10 @@ class TreeSitterSplitter(BaseSplitter):
                 refined_chunks.append(chunk)
             else:
                 sub_chunks = self._split_large_chunk(chunk)
+                sub_chunks = self._add_overlap(sub_chunks)
                 refined_chunks.extend(sub_chunks)
 
-        return self._add_overlap(refined_chunks)
+        return refined_chunks
 
     def _split_large_chunk(self, chunk: CodeChunk) -> list[CodeChunk]:
         lines = chunk.content.split("\n")
