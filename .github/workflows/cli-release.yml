@@ -31,25 +31,48 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - id: build_core
-        name: Build core
+      # Build core (Linux)
+      - id: build_core_linux
+        if: runner.os == 'Linux'
+        name: Build core (Linux)
         working-directory: ./core
         run: |
           uv sync --no-dev
           uv build
           cd dist
           wheel_file=$(ls -t *.whl | head -n1)
-          echo "wheel_file=$wheel_file" >> "$GITHUB_OUTPUT"
+          echo "wheel_file=$(basename \"$wheel_file\")" >> "$GITHUB_OUTPUT"
+
+      # Build core (Windows)
+      - id: build_core_windows
+        if: runner.os == 'Windows'
+        name: Build core (Windows)
+        working-directory: ./core
+        shell: pwsh
+        run: |
+          uv sync --no-dev
+          uv build
+          $w = Get-ChildItem .\dist\*.whl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $leaf = Split-Path $w.FullName -Leaf
+          ('wheel_file=' + $leaf) | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Generate requirements.txt
         working-directory: ./cli
         run: |
           uv export --no-dev --no-emit-package core > requirements.txt
 
-      - name: Install requirements
+      - name: Install requirements (Linux)
+        if: runner.os == 'Linux'
         run: |
-          pip install ./core/dist/${{ steps.build_core.outputs.wheel_file }}
+          pip install ./core/dist/${{ steps.build_core_linux.outputs.wheel_file }}
           pip install -r ./cli/requirements.txt
+
+      - name: Install requirements (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          pip install .\core\dist\${{ steps.build_core_windows.outputs.wheel_file }}
+          pip install -r .\cli\requirements.txt
 
       - name: Build Executable with Nuitka
         uses: Nuitka/Nuitka-Action@main
@@ -57,6 +80,8 @@ jobs:
           nuitka-version: main
           script-name: ./cli/src/main.py
           mode: onefile
+          # ensure build artifacts land in `build/` so upload step is simple
+          output-dir: build
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
