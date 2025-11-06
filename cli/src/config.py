@@ -41,6 +41,7 @@ class EmbeddingConfig(BaseModel):
 
 class ExplainerConfig(BaseModel):
 
+    enabled: bool = Field(default=False, description="Whether explanations are enabled")
     url: HttpUrl = Field(
         default=HttpUrl("http://localhost:11434/v1"),
         description="Explainer service URL",
@@ -50,14 +51,11 @@ class ExplainerConfig(BaseModel):
         description="API key for explainer service",
     )
     model: str = Field(default="gemma3:1b-it-q8_0 ", description="Explainer model name")
-    embedding_model: str = Field(
-        default="hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:F16",
-        description="Embedding model name",
+    embedding: EmbeddingConfig = EmbeddingConfig(
+        url=HttpUrl("http://localhost:11434/v1"),
+        model="hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:F16",
+        size=512,
     )
-    embedding_size: PositiveInt = Field(
-        default=512, description="Embedding size", multiple_of=2, le=2048
-    )
-    enabled: bool = Field(default=False, description="Whether explanations are enabled")
 
 
 class ChunkingConfig(BaseModel):
