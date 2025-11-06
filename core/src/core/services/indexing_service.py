@@ -13,6 +13,8 @@ from core.sync import FileSynchronizer
 from .constants import CODE_INDEX, EXPLANATION_INDEX, TEXT_EMBEDDING_MODEL, TEXT_INDEX
 from .utils import Embedding, EmbeddingService, ExplainerService, get_collection_name
 
+ITER_BATCH_SIZE = 128
+
 
 @dataclass
 class EmbeddingConfig:
@@ -95,24 +97,27 @@ class IndexingService:
 
         await self._delete_file_chunks(collection_name, results.to_remove)
         chunks = await self._get_chunks(codebase_path, results.to_add, splitter)
-        contents = [c.content for c in chunks]
-        code_embeddings = await embedding.service.generate_embeddings(
-            contents, embedding.model, embedding.batch_size
-        )
-        explanations: Explanations | None = None
-        if explainer is not None:
-            explanation_texts = await explainer.service.get_explanations(
-                contents, explainer.model
+        for chunk_batch in itertools.batched(chunks, ITER_BATCH_SIZE):
+            contents = [c.content for c in chunk_batch]
+            code_embeddings = await embedding.service.generate_embeddings(
+                contents, embedding.model, embedding.batch_size
             )
-            explanation_embeddings = (
-                await explainer.embedding.service.generate_embeddings(
-                    explanation_texts, explainer.embedding.model
+            explanations: Explanations | None = None
+            if explainer is not None:
+                explanation_texts = await explainer.service.get_explanations(
+                    contents, explainer.model
                 )
-            )
-            explanations = Explanations(explanation_texts, explanation_embeddings)
+                explanation_embeddings = (
+                    await explainer.embedding.service.generate_embeddings(
+                        explanation_texts, explainer.embedding.model
+                    )
+                )
+                explanations = Explanations(explanation_texts, explanation_embeddings)
 
-        points = await self._get_points(chunks, code_embeddings, explanations)
-        await self.client.upsert(collection_name, points)
+            points = await self._get_points(
+                list(chunk_batch), code_embeddings, explanations
+            )
+            await self.client.upsert(collection_name, points)
 
     async def _get_points(
         self,
