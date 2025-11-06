@@ -14,9 +14,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            name: code-context-x86_64.bin
+            asset_name: main.bin
           - os: windows-latest
-            name: code-context-x86_64.exe
+            asset_name: main.exe
 
     steps:
       - name: Checkout repository
@@ -31,7 +31,6 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      # Build core (Linux)
       - id: build_core_linux
         if: runner.os == 'Linux'
         name: Build core (Linux)
@@ -43,7 +42,6 @@ jobs:
           wheel_file=$(ls -t *.whl | head -n1)
           echo "wheel_file=$(basename \"$wheel_file\")" >> "$GITHUB_OUTPUT"
 
-      # Build core (Windows)
       - id: build_core_windows
         if: runner.os == 'Windows'
         name: Build core (Windows)
@@ -80,13 +78,40 @@ jobs:
           nuitka-version: main
           script-name: ./cli/src/main.py
           mode: onefile
-          # ensure build artifacts land in `build/` so upload step is simple
           output-dir: build
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ runner.os }} Build
-          path: |
-            build/*.exe
-            build/*.bin
+      # Authenticate gh (Linux)
+      - name: Authenticate gh (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          echo "$GITHUB_TOKEN" | gh auth login --with-token
+
+      # Authenticate gh (Windows)
+      - name: Authenticate gh (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:GITHUB_TOKEN | gh auth login --with-token
+
+      - name: Upload release asset (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          FILE="build/${{ matrix.asset_name }}"
+          if [ ! -f "$FILE" ]; then
+            echo "Error: $FILE not found"
+            exit 1
+          fi
+          gh release upload "${{ github.event.release.tag_name }}" "$FILE" --clobber --repo "${{ github.repository }}"
+
+      - name: Upload release asset (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $file = Join-Path $PWD "build\${{ matrix.asset_name }}"
+          if (!(Test-Path $file)) {
+            Write-Error "Error: $file not found"
+            exit 1
+          }
+          gh release upload "${{ github.event.release.tag_name }}" $file --clobber --repo "${{ github.repository }}"
