@@ -97,6 +97,8 @@ jobs:
       - name: Upload release asset (Linux)
         if: runner.os == 'Linux'
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           FILE="build/${{ matrix.asset_name }}"
           if [ ! -f "$FILE" ]; then
@@ -108,6 +110,8 @@ jobs:
       - name: Upload release asset (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $file = Join-Path $PWD "build\${{ matrix.asset_name }}"
           if (!(Test-Path $file)) {
