@@ -123,7 +123,7 @@ class IndexingService:
         ]
         explanations = await self.explainer.get_explanations([i[1] for i in indices])
 
-        for idx, _ in indices:
+        for (idx, _), exp in zip(indices, explanations):
             chunk = chunks[idx]
             chunks[idx] = CodeChunk(
                 content=chunk.content,
@@ -131,7 +131,7 @@ class IndexingService:
                 end_line=chunk.end_line,
                 language=chunk.language,
                 file_path=chunk.file_path,
-                doc=explanations[idx],
+                doc=exp,
             )
 
         return chunks
