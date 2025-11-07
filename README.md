@@ -5,6 +5,7 @@ Semantic code search and indexing system built with Python. Provides Semantic co
 ## Quick Usage
 
 To use you can download correct binay from [Releases](https://github.com/bojanb98/code-context/releases). Before usage you need to run init command to configure the Qdrant instance and embeddings provider:
+
 ```bash
 code-context init
 ```
@@ -31,8 +32,9 @@ code-context mcp                     # Start MCP server for tool integration
 
 1. **Semantic chunking** - using Tree-Sitter
 2. **Hybrid search** - using bm25 + any dense embedding model 
-3. **Docstring extraction** (Optional) - creates additional bm25 + dense index for search
-4. **Explanation generation** (Optional) - augments chunks with no docstring using small LLM
+3. **Incremental reindexing** - based on xxhash hashing
+4. **Docstring extraction** (Optional) - creates additional bm25 + dense index for search
+5. **Explanation generation** (Optional) - augments chunks with no docstring using small LLM
 
 ## Architecture
 
