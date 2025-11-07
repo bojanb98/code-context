@@ -11,7 +11,13 @@ from qdrant_client.models import FieldCondition, Filter, MatchValue
 from core.splitters import CodeChunk, Splitter
 from core.sync import FileSynchronizer
 
-from .constants import CODE_INDEX, EXPLANATION_INDEX, TEXT_EMBEDDING_MODEL, TEXT_INDEX
+from .constants import (
+    CODE_DENSE,
+    CODE_SPARSE,
+    DOC_DENSE,
+    DOC_SPARSE,
+    TEXT_EMBEDDING_MODEL,
+)
 from .utils import Embedding, EmbeddingService, ExplainerService, get_collection_name
 
 ITER_BATCH_SIZE = 128
@@ -61,8 +67,9 @@ class IndexingService:
         self,
         codebase_path: Path,
         splitter: Splitter,
-        embedding: EmbeddingConfig,
-        explainer: ExplainerConfig | None = None,
+        code_config: EmbeddingConfig,
+        doc_config: EmbeddingConfig | None = None,
+        explainer: ExplainerService | None = None,
         force_reindex: bool = False,
     ) -> None:
         """Index a codebase, automatically handling initial indexing or incremental reindexing.
@@ -83,8 +90,8 @@ class IndexingService:
 
         await self._prepare_collection(
             codebase_path,
-            embedding.size,
-            explainer.embedding.size if explainer is not None else None,
+            code_config.size,
+            doc_config.size if doc_config is not None else None,
             force_reindex,
         )
 
@@ -99,37 +106,63 @@ class IndexingService:
         chunks = await self._get_chunks(codebase_path, results.to_add, splitter)
         for chunk_batch in itertools.batched(chunks, ITER_BATCH_SIZE):
             contents = [c.content for c in chunk_batch]
-            code_embeddings = await embedding.service.generate_embeddings(
-                contents, embedding.model, embedding.batch_size
+            code_embeddings = await code_config.service.generate_embeddings(
+                contents, code_config.model, code_config.batch_size
             )
-            explanations: Explanations | None = None
-            if explainer is not None:
-                explanation_texts = await explainer.service.get_explanations(contents)
-                explanation_embeddings = (
-                    await explainer.embedding.service.generate_embeddings(
-                        explanation_texts, explainer.embedding.model
-                    )
+            doc_embeddings: list[Embedding] | None = None
+            if doc_config is not None:
+                chunk_batch = await self._augment_with_explanations(
+                    list(chunk_batch), explainer
                 )
-                explanations = Explanations(explanation_texts, explanation_embeddings)
+                doc_embeddings = await doc_config.service.generate_embeddings(
+                    [c.doc or "unknown" for c in chunk_batch], doc_config.model
+                )
 
             points = await self._get_points(
-                list(chunk_batch), code_embeddings, explanations
+                list(chunk_batch), code_embeddings, doc_embeddings
             )
+
             await self.client.upsert(collection_name, points)
+
+    async def _augment_with_explanations(
+        self, chunks: list[CodeChunk], explainer: ExplainerService | None
+    ) -> list[CodeChunk]:
+        if explainer is None:
+            return chunks
+
+        indices = [
+            (i, c.content)
+            for i, c in enumerate(chunks)
+            if c.doc is None or not c.doc.strip()
+        ]
+        explanations = await explainer.get_explanations([i[1] for i in indices])
+
+        for idx, _ in indices:
+            chunk = chunks[idx]
+            chunks[idx] = CodeChunk(
+                content=chunk.content,
+                start_line=chunk.start_line,
+                end_line=chunk.end_line,
+                language=chunk.language,
+                file_path=chunk.file_path,
+                doc=explanations[idx],
+            )
+
+        return chunks
 
     async def _get_points(
         self,
         chunks: list[CodeChunk],
-        embeddings: list[Embedding],
-        explanations: Explanations | None = None,
+        code_embeddings: list[Embedding],
+        doc_embeddings: list[Embedding] | None = None,
     ) -> list[models.PointStruct]:
-        if explanations is None:
+        if doc_embeddings is None:
             return [
                 models.PointStruct(
                     id=uuid.uuid4().hex,
                     vector={
-                        "code": emb,
-                        "bm25": models.Document(
+                        CODE_DENSE: emb,
+                        CODE_SPARSE: models.Document(
                             text=chunk.content, model=TEXT_EMBEDDING_MODEL
                         ),
                     },
@@ -142,31 +175,32 @@ class IndexingService:
                         "indexed_at": datetime.now(timezone.utc),
                     },
                 )
-                for chunk, emb in zip(chunks, embeddings)
+                for chunk, emb in zip(chunks, code_embeddings)
             ]
         return [
             models.PointStruct(
                 id=uuid.uuid4().hex,
                 vector={
-                    "code": code_emb,
-                    "explanation": exp_emb,
-                    "bm25": models.Document(
+                    CODE_DENSE: code_emb,
+                    DOC_DENSE: exp_emb,
+                    CODE_SPARSE: models.Document(
                         text=chunk.content, model=TEXT_EMBEDDING_MODEL
+                    ),
+                    DOC_SPARSE: models.Document(
+                        text=chunk.doc or "unknown", model=TEXT_EMBEDDING_MODEL
                     ),
                 },
                 payload={
                     "content": chunk.content,
+                    "doc": chunk.doc,
                     "relative_path": chunk.file_path,
                     "start_line": chunk.start_line,
                     "end_line": chunk.end_line,
                     "language": chunk.language,
-                    "explanation": exp_text,
                     "indexed_at": datetime.now(timezone.utc),
                 },
             )
-            for chunk, code_emb, exp_text, exp_emb in zip(
-                chunks, embeddings, explanations.text, explanations.embeddings
-            )
+            for chunk, code_emb, exp_emb in zip(chunks, code_embeddings, doc_embeddings)
         ]
 
     async def _get_chunks(
@@ -214,24 +248,29 @@ class IndexingService:
         self, collection_name: str, code_size: int, explanation_size: int | None = None
     ) -> None:
         dense_vectors: dict[str, models.VectorParams] = {
-            CODE_INDEX: models.VectorParams(
+            CODE_DENSE: models.VectorParams(
                 size=code_size,
                 distance=models.Distance.COSINE,
             )
         }
 
+        sparse_vectors: dict[str, models.SparseVectorParams] = {
+            CODE_SPARSE: models.SparseVectorParams(modifier=models.Modifier.IDF)
+        }
+
         if explanation_size is not None:
-            dense_vectors[EXPLANATION_INDEX] = models.VectorParams(
+            dense_vectors[DOC_DENSE] = models.VectorParams(
                 size=explanation_size,
                 distance=models.Distance.COSINE,
+            )
+            sparse_vectors[DOC_SPARSE] = models.SparseVectorParams(
+                modifier=models.Modifier.IDF
             )
 
         await self.client.create_collection(
             collection_name=collection_name,
             vectors_config=dense_vectors,
-            sparse_vectors_config={
-                TEXT_INDEX: models.SparseVectorParams(modifier=models.Modifier.IDF)
-            },
+            sparse_vectors_config=sparse_vectors,
         )
 
     async def _get_embeddings(

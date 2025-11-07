@@ -4,7 +4,13 @@ from pathlib import Path
 from loguru import logger
 from qdrant_client import AsyncQdrantClient, models
 
-from .constants import CODE_INDEX, EXPLANATION_INDEX, TEXT_EMBEDDING_MODEL, TEXT_INDEX
+from .constants import (
+    CODE_DENSE,
+    CODE_SPARSE,
+    DOC_DENSE,
+    DOC_SPARSE,
+    TEXT_EMBEDDING_MODEL,
+)
 from .utils import EmbeddingService, get_collection_name
 
 
@@ -25,12 +31,12 @@ class SearchService:
         client: AsyncQdrantClient,
         embedding_service: EmbeddingService,
         code_model: str,
-        explanation_model: str,
+        doc_model: str,
     ):
         self.client = client
         self.embedding_service = embedding_service
         self.code_model = code_model
-        self.explanation_model = explanation_model
+        self.doc_model = doc_model
 
     async def _perform_search(
         self,
@@ -45,13 +51,13 @@ class SearchService:
                 query=await self.embedding_service.generate_embedding(
                     query_text, self.code_model
                 ),
-                using=CODE_INDEX,
-                limit=limit * 2,
+                using=CODE_DENSE,
+                limit=limit,
             ),
             models.Prefetch(
                 query=models.Document(text=query_text, model=TEXT_EMBEDDING_MODEL),
-                using=TEXT_INDEX,
-                limit=limit * 2,
+                using=CODE_SPARSE,
+                limit=limit,
             ),
         ]
 
@@ -59,10 +65,17 @@ class SearchService:
             prefetch.append(
                 models.Prefetch(
                     query=await self.embedding_service.generate_embedding(
-                        query_text, self.explanation_model
+                        query_text, self.doc_model
                     ),
-                    using=EXPLANATION_INDEX,
-                    limit=limit * 2,
+                    using=DOC_DENSE,
+                    limit=limit,
+                ),
+            )
+            prefetch.append(
+                models.Prefetch(
+                    query=models.Document(text=query_text, model=TEXT_EMBEDDING_MODEL),
+                    using=DOC_SPARSE,
+                    limit=limit,
                 ),
             )
 

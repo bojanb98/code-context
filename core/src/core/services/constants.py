@@ -1,5 +1,7 @@
 TEXT_EMBEDDING_MODEL = "Qdrant/bm25"
 
-CODE_INDEX = "code"
-EXPLANATION_INDEX = "explanation"
-TEXT_INDEX = "bm25"
+CODE_DENSE = "code"
+CODE_SPARSE = "code_bm25"
+
+DOC_DENSE = "doc"
+DOC_SPARSE = "doc_bm25"
