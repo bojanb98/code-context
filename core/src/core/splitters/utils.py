@@ -2,7 +2,7 @@ from pathlib import Path
 
 from tree_sitter_language_pack import SupportedLanguage
 
-LANGUAGE_EXTENSIONS: dict[str, SupportedLanguage] = {
+_LANGUAGE_EXTENSIONS: dict[str, SupportedLanguage] = {
     ".ts": "typescript",
     ".tsx": "typescript",
     ".js": "javascript",
@@ -23,24 +23,21 @@ LANGUAGE_EXTENSIONS: dict[str, SupportedLanguage] = {
     ".scala": "scala",
 }
 
-SUPPORTED_EXTENSIONS = set(LANGUAGE_EXTENSIONS.keys())
 
 SPLITTABLE_NODE_TYPES: dict[SupportedLanguage, list[str]] = {
     "javascript": [
         "function_declaration",
-        "arrow_function",
         "class_declaration",
         "method_definition",
-        "export_statement",
+        "arrow_function",
     ],
     "typescript": [
         "function_declaration",
-        "arrow_function",
         "class_declaration",
         "method_definition",
-        "export_statement",
         "interface_declaration",
         "type_alias_declaration",
+        "arrow_function",
     ],
     "python": [
         "function_definition",
@@ -58,14 +55,11 @@ SPLITTABLE_NODE_TYPES: dict[SupportedLanguage, list[str]] = {
         "function_definition",
         "class_specifier",
         "namespace_definition",
-        "declaration",
     ],
     "go": [
         "function_declaration",
         "method_declaration",
         "type_declaration",
-        "var_declaration",
-        "const_declaration",
     ],
     "rust": [
         "function_item",
@@ -89,6 +83,9 @@ SPLITTABLE_NODE_TYPES: dict[SupportedLanguage, list[str]] = {
         "constructor_declaration",
     ],
 }
+
+
+SUPPORTED_EXTENSIONS = set(_LANGUAGE_EXTENSIONS.keys())
 
 
 def is_file_supported(path: Path) -> bool:

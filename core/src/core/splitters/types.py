@@ -10,3 +10,4 @@ class CodeChunk:
     end_line: int
     language: SupportedLanguage
     file_path: str
+    doc: str | None = None
