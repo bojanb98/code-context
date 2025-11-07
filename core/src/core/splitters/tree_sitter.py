@@ -18,7 +18,7 @@ _BODY_NODE_TYPES = {
 
 # String literal node names commonly used across grammars.
 _STRING_NODE_TYPES = {
-    "string",  # js
+    "string",  # js / py (container)
     "string_literal",  # java / c / cpp / csharp / rust / scala / kotlin / swift
     "interpreted_string_literal",  # go
     "raw_string_literal",  # go
@@ -64,7 +64,7 @@ class TreeSitterSplitter(BaseSplitter):
             file_path: Path to the file
 
         Returns:
-            List[CodeChunk]
+            list[CodeChunk]
         """
         lang = _LANGUAGE_EXTENSIONS.get(file_path.suffix.lower().strip())
         if lang is None:
@@ -119,7 +119,7 @@ class TreeSitterSplitter(BaseSplitter):
                             end_line=end_line,
                             language=lang,
                             file_path=str(file_path),
-                            doc=doc,
+                            doc=doc.strip(),
                         )
                     )
 
@@ -129,11 +129,10 @@ class TreeSitterSplitter(BaseSplitter):
         traverse(node)
 
         if not chunks:
-            # Fallback: single file chunk
             total_lines = len(code.splitlines()) or 1
             chunks.append(
                 CodeChunk(
-                    content=code,
+                    content=code.strip(),
                     start_line=1,
                     end_line=total_lines,
                     language=lang,
@@ -175,11 +174,14 @@ class TreeSitterSplitter(BaseSplitter):
         inline_doc: str | None = None
         code_wo_inline: str = node_text
 
+        # 1) Inline docstring inside the node (Python).
         if lang in _INLINE_DOCSTRING_LANGS:
             inline_doc, code_wo_inline = self._extract_inline_docstring(node, code)
 
+        # 2) Leading documentation comments outside the node (all languages).
         leading_doc = self._gather_leading_doc_comment_block(node, code)
 
+        # Prefer inline doc if present; otherwise take leading doc if present.
         if inline_doc:
             return code_wo_inline, self._normalize_doc_text(inline_doc)
         if leading_doc:
@@ -200,9 +202,9 @@ class TreeSitterSplitter(BaseSplitter):
         if first_stmt.type == "expression_statement" and first_stmt.named_children:
             str_node = first_stmt.named_children[0]
             if str_node.type in _STRING_NODE_TYPES:
-                doc_text = self._slice(code, str_node.start_byte, str_node.end_byte)
+                raw_doc = self._slice(code, str_node.start_byte, str_node.end_byte)
+                doc_text = self._unquote_string_literal(raw_doc)
 
-                # Remove ONLY the first_stmt bytes (not just the string) to avoid leaving quotes.
                 before = self._slice(code, node.start_byte, first_stmt.start_byte)
                 after = self._slice(code, first_stmt.end_byte, node.end_byte)
                 new_full = (before + after).strip()
@@ -210,8 +212,35 @@ class TreeSitterSplitter(BaseSplitter):
 
         return None, full
 
-    def _gather_leading_doc_comment_block(self, n: Node, code: str) -> str | None:
-        prev = n.prev_sibling
+    def _unquote_string_literal(self, s: str) -> str:
+        if not s:
+            return s
+
+        # Strip leading/trailing whitespace once (docstrings rarely need exact indentation here)
+        s = s.strip()
+
+        # Remove prefixes (any combination and order of r/u/f/b, case-insensitive)
+        i = 0
+        while i < len(s) and s[i].lower() in {"r", "u", "f", "b"}:
+            i += 1
+        prefix = s[:i]
+        body = s[i:]
+
+        # Triple quotes
+        for q in ('"""', "'''"):
+            if body.startswith(q) and body.endswith(q) and len(body) >= 2 * len(q):
+                return body[len(q) : -len(q)]
+
+        # Single/double quotes
+        for q in ('"', "'"):
+            if body.startswith(q) and body.endswith(q) and len(body) >= 2:
+                return body[1:-1]
+
+        # If prefixes ended up consuming entire string or malformed quotes, just return original
+        return s[len(prefix) :] if prefix and len(prefix) < len(s) else s
+
+    def _gather_leading_doc_comment_block(self, node: Node, code: str) -> str | None:
+        prev = node.prev_sibling
         if prev is None:
             return None
 
@@ -241,8 +270,8 @@ class TreeSitterSplitter(BaseSplitter):
 
         return block
 
-    def _find_body_child(self, n: Node) -> Node | None:
-        for ch in n.named_children:
+    def _find_body_child(self, node: Node) -> Node | None:
+        for ch in node.named_children:
             if ch.type in _BODY_NODE_TYPES:
                 return ch
         return None
@@ -295,9 +324,6 @@ class TreeSitterSplitter(BaseSplitter):
     # ----------------------- Refinement & fallback -----------------------
 
     async def _refine_chunks(self, chunks: list[CodeChunk]) -> list[CodeChunk]:
-        """
-        Size-based refinement with overlap. Preserve `doc` on derived chunks.
-        """
         refined: list[CodeChunk] = []
 
         for chunk in chunks:
