@@ -1,78 +1,91 @@
 # CLAUDE.md
 
-Semantic code search system with Python core library and cyclopts CLI.
+---
 
-## Development Commands
+## Goals
+- Maintain **readability, determinism, and testability**.
+- Prioritize **clarity and maintainability** over abstraction.
+- Code should be **functional, explicit, and side-effect aware**.
+- Every module should have a single clear purpose.
 
-### Core Library
-```bash
-cd core && uv sync
-```
+---
 
-### CLI Tool
-```bash
-cd cli && uv sync
-./src/main.py init                          # Interactive configuration
-./src/main.py index [path] [--force]        # Index directory
-./src/main.py search <query> [path]         # Search
-./src/main.py drop [path]                   # Remove from index
-./src/main.py mcp                           # Start MCP server
-```
+## Project Structure
 
-## Architecture
+### `/core`
+Implements all logic for semantic indexing and search.
 
-### Core (`core/`)
-Python library with modular structure:
-- **IndexingService**: Orchestrates file processing and vector storage
-- **SearchService**: Handles semantic search queries with hybrid capabilities
-- **EmbeddingService**: Manages embedding generation via OpenAI-compatible APIs
-- **ExplainerService**: Provides code explanations using LLMs
-- **FileSynchronizer**: Merkle tree-based incremental updates
-- **TreeSitterSplitter**: Language-aware code splitting
-- **CollectionName**: Generates unique collection names per project
+| Area | Description |
+|-------|--------------|
+| `core/services/` | Indexing, searching, embeddings, and explanation services |
+| `core/splitters/` | Tree-sitter based chunkers and related types |
+| `core/sync/` | Incremental file sync and hashing |
+| `core/services/utils/` | Helper services (embeddings, explainer, collection naming) |
 
-### CLI (`cli/`)
-Python command-line tool:
-- Commands: `init`, `index`, `search`, `drop`, `mcp`
-- Configuration management via pydantic-settings
-- Rich terminal output formatting
-- MCP server integration for tool usage
+### `/cli`
+Thin async command layer wrapping core services with `cyclopts`.
+`ServiceFactory` handles construction and lifecycle of dependencies.
 
-## Key Features
+---
 
-- **Hybrid Search**: Combines semantic similarity and keyword matching
-- **Incremental Updates**: Merkle tree-based change detection
-- **Multi-language Support**: Tree-sitter parsing for 15+ languages
-- **Flexible Embeddings**: OpenAI-compatible providers including Ollama
-- **Code Explanations**: Optional LLM-powered code explanations
-- **MCP Integration**: Model Context Protocol server for tool integration
+## Design Principles
 
-## Code Style
+### Code Style
+- Python 3.13+, `async`/`await` by default. 
+- Follow **PEP8 + Black + Ruff defaults**; 88-char lines.
+- Use **type hints** everywhere.
+- Prefer **dataclasses** for immutable records. 
+- Log via **loguru**, retry via **tenacity**, never print from core modules.
+- Avoid global state; configuration flows through `AppSettings`.
 
-### Python
-- **Formatter**: Black with 88-character line length
-- **Type Hints**: Modern Python 3.13 typing syntax
-- **Async/Await**: Full async pattern for I/O operations
-- **Dependencies**: Managed with uv package manager
+### Architecture
+- **Core is framework-agnostic** and async-safe.
+- **CLI and integrations** (MCP, REST, etc.) compose services — they never re-implement logic.
+- **Tree-sitter** is the only parsing layer; do not add regex-based splitters.
+- File synchronization uses **deterministic hashing** and `.gitignore` inheritance.
+- All network operations (Qdrant, embedding APIs) must be **idempotent and retried** safely.
+- Favor **composition over inheritance**
 
-### Libraries and Tools
-- **cyclopts**: Modern CLI argument parsing
-- **pydantic**: Data validation and configuration management
-- **rich**: Terminal formatting and progress display
-- **loguru**: Structured logging with rotation
-- **qdrant-client**: Vector database client
-- **tree-sitter**: Language parsing for code splitting
-- **mcp**: Model Context Protocol server implementation
-- **tenacity**: Retry logic with exponential backoff
+### Testing & Development
 
-### Project Structure
-- **Modular Design**: Clear separation between services, utilities, and CLI
-- **Configuration**: Centralized settings with environment variable support
-- **Error Handling**: Comprehensive error handling and logging
-- **Testing**: Tests organized in `tests/` directory
+* CLI development uses:
 
-### Development Practices
-- **Async-First**: All I/O operations use async/await patterns
-- **Type Safety**: Comprehensive type annotations throughout
-- **Configuration Management**: Environment-based configuration with defaults
-- **Service Factory**: Dependency injection pattern for service management
+  ```bash
+  uv run src/main.py <command>
+  ```
+* Avoid mocking external APIs; use small test containers or fixtures.
+* Unit tests should verify correctness of:
+
+  * File scanning and `.gitignore` merging
+  * Chunk extraction and doc inference
+  * Embedding and search vector schema
+
+---
+
+## Tools
+
+| Purpose           | Tool                |
+| ----------------- | ------------------- |
+| CLI framework     | Cyclopts            |
+| Output formatting | Rich                |
+| Async client      | Qdrant Python SDK   |
+| Embeddings        | OpenAI API / Ollama |
+| Code parsing      | tree-sitter         |
+| Retry handling    | tenacity            |
+| Logging           | loguru              |
+| Build / Env       | uv                  |
+
+---
+
+## Extending the System
+
+* Add new **splitters** or **embedders** by extending existing protocols.
+* New features must integrate through service interfaces — never modify CLI directly.
+* Keep API contracts stable across versions (`IndexingService`, `SearchService`).
+
+---
+
+## Summary
+
+The repository values **predictable async systems**, **simple composition**, and **directness**.
+When in doubt: *prefer fewer abstractions, smaller modules, and visible data flow.*
