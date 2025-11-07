@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from core import get_collection_name
+
 
 async def drop_command(
     path: Path = Path("."),
@@ -12,7 +14,9 @@ async def drop_command(
     from config import load_config
     from service_factory import ServiceFactory
 
-    settings = load_config()
+    collection_name = get_collection_name(path.expanduser().absolute())
+
+    settings, _ = load_config()
     services = ServiceFactory(settings)
 
     indexing_service = services.get_indexing_service()

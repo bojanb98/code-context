@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from core import ExplainerConfig
+from core import ExplainerConfig, get_collection_name
+
+from config import save_config
 
 
 async def index_command(
@@ -14,11 +16,21 @@ async def index_command(
         force: Force complete reindexing instead of incremental updates
     """
     from core import EmbeddingConfig
+    from rich import print
 
     from config import load_config
     from service_factory import ServiceFactory
 
-    settings = load_config()
+    collection_name = get_collection_name(path.expanduser().absolute())
+
+    settings, has_changed = load_config(collection_name)
+
+    if has_changed and not force:
+        print(
+            "Config has changed since last load. Please rerun command with --force option"
+        )
+        return
+
     services = ServiceFactory(settings)
 
     indexing_service = services.get_indexing_service()
@@ -47,3 +59,5 @@ async def index_command(
     await indexing_service.index(
         path, splitter, embedding_config, explainer_config, force
     )
+
+    save_config(settings, collection_name)

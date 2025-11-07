@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from core import SearchResult
+from core import SearchResult, get_collection_name
 
 OutputType = Literal["simple", "json", "simple-json"]
 
@@ -66,10 +66,19 @@ async def search_command(
         limit: Maximum number of results to return (1-50)
         output: Output format: simple (default), json (full details), simple-json (content only)
     """
+    from rich import print
+
     from config import load_config
     from service_factory import ServiceFactory
 
-    settings = load_config()
+    collection_name = get_collection_name(path.expanduser().absolute())
+
+    settings, has_changed = load_config(collection_name)
+
+    if has_changed:
+        print("Please first run index command with --force option")
+        return
+
     services = ServiceFactory(settings)
 
     search_service = services.get_search_service()

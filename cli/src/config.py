@@ -1,12 +1,17 @@
-import json
+import os
 from pathlib import Path
 
+import xxhash
 from pydantic import BaseModel, Field, HttpUrl, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_DIR = (Path.home() / ".code-context").expanduser().absolute()
+DEFAULT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_CONFIG_PATH = DEFAULT_DIR / "settings.json"
+
+CONFIGS_DIR = DEFAULT_DIR / "configs"
+CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class QdrantConfig(BaseModel):
@@ -109,12 +114,38 @@ class AppSettings(BaseSettings):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
 
-def load_config(file_path: str | None = None) -> AppSettings:
-    config_path = Path(file_path or DEFAULT_CONFIG_PATH)
-    contents = json.loads(config_path.read_text())
-    return AppSettings.model_validate(contents)
+def load_config(collection_name: str | None = None) -> tuple[AppSettings, bool]:
+    config_path = DEFAULT_CONFIG_PATH
+    hash_path = DEFAULT_DIR / ".settings.hash"
+    if collection_name is not None:
+        config_path = CONFIGS_DIR / f"{collection_name}.json"
+        if not config_path.exists():
+            config_path = DEFAULT_CONFIG_PATH
+        else:
+            hash_path = CONFIGS_DIR / f".{collection_name}.hash"
+    contents = config_path.read_text()
+    has_changed = config_path != DEFAULT_CONFIG_PATH
+    if hash_path.exists():
+        hash = hash_path.read_text()
+        has_changed = hash != xxhash.xxh3_64_hexdigest(contents)
+    return AppSettings.model_validate_json(contents), has_changed
 
 
-def save_config(settings: AppSettings, file_path: str | None = None) -> None:
-    config_path = Path(file_path or DEFAULT_CONFIG_PATH)
-    config_path.write_text(settings.model_dump_json(indent=2))
+def save_config(settings: AppSettings, collection_name: str | None = None) -> None:
+    config_path = DEFAULT_CONFIG_PATH
+    hash_path = DEFAULT_DIR / ".settings.hash"
+    if collection_name is not None:
+        config_path = CONFIGS_DIR / f"{collection_name}.json"
+        hash_path = CONFIGS_DIR / f".{collection_name}.hash"
+    output = settings.model_dump_json(indent=2)
+    config_path.write_text(output)
+    hash_path.write_text(xxhash.xxh3_64_hexdigest(output))
+
+
+def delete_config(collection_name: str) -> None:
+    config_path = CONFIGS_DIR / f"{collection_name}.json"
+    hash_path = CONFIGS_DIR / f".{collection_name}.hash"
+    if config_path.exists():
+        os.remove(config_path)
+    if hash_path.exists():
+        os.remove(hash_path)

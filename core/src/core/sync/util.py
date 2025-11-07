@@ -54,4 +54,7 @@ DEFAULT_IGNORE_PATTERNS = [
     "logs",
     "tmp",
     "temp",
+    "*.bin",
+    "*.exe",
+    "*.out",
 ]

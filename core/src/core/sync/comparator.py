@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .scanner import _sha256_of_file
+from .scanner import _file_hash
 from .types import DetectedChanges, FileRecord
 
 
@@ -29,7 +29,7 @@ async def compare_snapshot_to_current(
         if old.size == size and old.mtime == mtime and old.inode == inode:
             continue
         # metadata changed; compute current hash and compare
-        curr_hash = _sha256_of_file(root / p)
+        curr_hash = _file_hash(root / p)
         if curr_hash != old.hash:
             modified.append(p)
         # else: metadata changed but content same -> treat as unchanged
@@ -59,7 +59,7 @@ async def compare_snapshot_to_current(
             continue
         # we found a candidate; must ensure content same to avoid missing modifications
         old_rec = old_files[old_p]
-        curr_hash = _sha256_of_file(root / new_p)
+        curr_hash = _file_hash(root / new_p)
         if curr_hash == old_rec.hash:
             to_remove_added.add(new_p)
             to_remove_removed.add(old_p)
@@ -76,7 +76,7 @@ async def compare_snapshot_to_current(
     to_remove_added = set()
     to_remove_removed = set()
     for new_p in list(added_set):
-        curr_hash = _sha256_of_file(root / new_p)
+        curr_hash = _file_hash(root / new_p)
         old_p = removed_hashes.get(curr_hash)
         if old_p:
             to_remove_added.add(new_p)

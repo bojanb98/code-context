@@ -1,6 +1,7 @@
-import hashlib
 import json
 from pathlib import Path
+
+import xxhash
 
 from .types import FileRecord
 
@@ -9,7 +10,7 @@ SNAPSHOT_VERSION = 1
 
 def snapshot_path_for(codebase_path: Path, snapshots_dir: Path) -> Path:
     resolved = str(codebase_path.resolve())
-    name = hashlib.md5(resolved.encode("utf-8")).hexdigest()
+    name = xxhash.xxh3_64_hexdigest(resolved.encode("utf-8"))
     return snapshots_dir / f"{name}.json"
 
 

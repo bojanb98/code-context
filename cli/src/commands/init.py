@@ -12,16 +12,16 @@ async def init_command() -> None:
     config = AppSettings()
 
     if DEFAULT_CONFIG_PATH.exists():
-        if not Confirm.ask(
-            "Configuration already exists. Overwrite?",
-        ):
+        if not Confirm.ask("Configuration already exists. Overwrite?", default=True):
             print("Configuration initialization cancelled.")
             return
 
-        config = load_config()
+        config, _ = load_config()
 
     print("\n[bold]Qdrant Vector Database[/bold]")
-    config.qdrant.url = HttpUrl(Prompt.ask("Qdrant host", default=config.qdrant.url))
+    config.qdrant.url = HttpUrl(
+        Prompt.ask("Qdrant host", default=str(config.qdrant.url))
+    )
 
     if config.qdrant.url.host != "localhost":
         config.qdrant.api_key = Prompt.ask(
@@ -44,7 +44,7 @@ async def init_command() -> None:
         )
     else:
         config.embedding.url = HttpUrl(
-            Prompt.ask("Embedding service URL", default=config.embedding.url)
+            Prompt.ask("Embedding service URL", default=str(config.embedding.url))
         )
         config.embedding.api_key = Prompt.ask(
             "Embedding service API key", default=config.embedding.api_key, password=True
@@ -57,7 +57,9 @@ async def init_command() -> None:
         )
 
     print("\n[bold]Explainer Service[/bold]")
-    use_explainer = Confirm.ask("Enable code explanations?")
+    use_explainer = Confirm.ask(
+        "Enable code explanations? (may slow down indexing)", default=False
+    )
     config.explainer.enabled = use_explainer
 
     if use_explainer:

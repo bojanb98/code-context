@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from core import SearchResult
+from core import SearchResult, get_collection_name
 
 
 def mcp_command() -> None:
@@ -12,11 +12,6 @@ def mcp_command() -> None:
 
     from config import load_config
     from service_factory import ServiceFactory
-
-    settings = load_config()
-    services = ServiceFactory(settings)
-
-    search_service = services.get_search_service()
 
     mcp = FastMCP("code-context-search")
 
@@ -36,7 +31,11 @@ def mcp_command() -> None:
             List of search results containing file paths, line numbers,
             similarity scores, code content, and explanations when available.
         """
+        collection_name = get_collection_name(Path(path).expanduser().absolute())
+        settings, _ = load_config(collection_name)
+        services = ServiceFactory(settings)
 
+        search_service = services.get_search_service()
         results = await search_service.search(Path(path), query, top_k=limit)
 
         return results

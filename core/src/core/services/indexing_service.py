@@ -175,9 +175,12 @@ class IndexingService:
         all_chunks: list[CodeChunk] = []
         for file in files:
             file_path = codebase_path / file
-            content = file_path.read_text(encoding="utf-8")
-            chunks = await splitter.split(content, file_path)
-            all_chunks.extend(chunks)
+            try:
+                content = file_path.read_text(encoding="utf-8")
+                chunks = await splitter.split(content, file_path)
+                all_chunks.extend(chunks)
+            except Exception as e:
+                logger.debug("Unable to read a file {} {}", file_path, e)
 
         return all_chunks
 

@@ -6,6 +6,7 @@ from .services import (
     IndexingService,
     SearchResult,
     SearchService,
+    get_collection_name,
 )
 from .splitters import TreeSitterSplitter
 from .sync import FileSynchronizer
@@ -20,4 +21,5 @@ __all__ = [
     "SearchResult",
     "TreeSitterSplitter",
     "FileSynchronizer",
+    "get_collection_name",
 ]
