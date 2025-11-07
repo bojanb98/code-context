@@ -2,6 +2,31 @@
 
 Semantic code search and indexing system built with Python. Provides AI-powered code search through vector embeddings and hybrid search capabilities.
 
+## Quick Usage
+
+To use you can download correct binay from [Releases](https://github.com/bojanb98/code-context/releases). Before usage you need to run init command to configure the Qdrant instance and embeddings provider:
+```bash
+code-context init
+```
+
+Supports any OpenAI API compatible provider, including Ollama. If you want to quickly setup local Qdrant and Ollama just run:
+```
+docker compose up -d
+```
+from the repo root. Default CLI configuration values are already setup to work with local stack.
+
+Index and search code:
+```bash
+code-context index [path]            # Index current directory or specified path
+code-context search "query" [path]   # Search in current directory or specified path
+code-context drop [path]             # Remove current directory or specified path from index
+```
+
+MCP server support:
+```bash
+code-context mcp                     # Start MCP server for tool integration
+```
+
 ## Architecture
 
 - `core/` - Python library for semantic code indexing and search
@@ -10,23 +35,3 @@ Semantic code search and indexing system built with Python. Provides AI-powered 
 See individual README files for detailed documentation:
 - [Core Documentation](core/README.md)
 - [CLI Documentation](cli/README.md)
-
-## Quick Usage
-
-Install and configure CLI:
-```bash
-cd cli && uv sync
-./src/main.py init                    # Configure embedding service and Qdrant
-```
-
-Index and search code:
-```bash
-./src/main.py index [path]            # Index current directory or specified path
-./src/main.py search "query" [path]   # Search in current directory or specified path
-./src/main.py drop [path]             # Remove current directory or specified path from index
-```
-
-MCP server support:
-```bash
-./src/main.py mcp                     # Start MCP server for tool integration
-```

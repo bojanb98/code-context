@@ -119,7 +119,7 @@ class TreeSitterSplitter(BaseSplitter):
                             end_line=end_line,
                             language=lang,
                             file_path=str(file_path),
-                            doc=doc.strip(),
+                            doc=doc.strip() if doc is not None else None,
                         )
                     )
 

@@ -12,7 +12,7 @@ uv sync
 
 Initialize configuration with interactive setup:
 ```bash
-./src/main.py init
+uv run ./src/main.py init
 ```
 
 This creates a configuration file at `~/.code-context/settings.json` with settings for:
