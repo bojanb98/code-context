@@ -1,6 +1,6 @@
 # Code Context
 
-Semantic code search and indexing system built with Python. Provides AI-powered code search through vector embeddings and hybrid search capabilities.
+Semantic code search and indexing system built with Python. Provides Semantic code search through vector embeddings and hybrid search capabilities.
 
 ## Quick Usage
 
@@ -9,7 +9,7 @@ To use you can download correct binay from [Releases](https://github.com/bojanb9
 code-context init
 ```
 
-Supports any OpenAI API compatible provider, including Ollama. If you want to quickly setup local Qdrant and Ollama just run:
+Supports any OpenAI API compatible provider, including Ollama. If you want to quickly setup local Qdrant and Ollama just copy provider [Docker Compose file](./docker-compose.yaml), or run:
 ```
 docker compose up -d
 ```
@@ -26,6 +26,13 @@ MCP server support:
 ```bash
 code-context mcp                     # Start MCP server for tool integration
 ```
+
+## Functionalities
+
+1. **Semantic chunking** - using Tree-Sitter
+2. **Hybrid search** - using bm25 + any dense embedding model 
+3. **Docstring extraction** (Optional) - creates additional bm25 + dense index for search
+4. **Explanation generation** (Optional) - augments chunks with no docstring using small LLM
 
 ## Architecture
 
