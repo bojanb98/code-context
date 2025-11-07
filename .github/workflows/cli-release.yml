@@ -107,7 +107,7 @@ jobs:
             echo "Error: $FILE not found"
             exit 1
           fi
-          gh release upload "${{ github.event.release.tag_name }}" "$FILE" --clobber --repo "${{ github.repository }}"
+          gh release upload "${{ github.event.release.tag_name }}" "$FILE" --clobber --repo "${{ github.repository }}" --name "${{ matrix.target_name }}"
 
       - name: Upload release asset (Windows)
         if: runner.os == 'Windows'
