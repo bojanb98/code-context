@@ -59,7 +59,9 @@ class ServiceFactory:
     def get_client(self) -> AsyncQdrantClient:
         if not self._client:
             self._client = AsyncQdrantClient(
-                url=str(self.settings.qdrant.url), api_key=self.settings.qdrant.api_key
+                url=str(self.settings.qdrant.url),
+                api_key=self.settings.qdrant.api_key,
+                timeout=120,
             )
         return self._client
 
@@ -79,6 +81,7 @@ class ServiceFactory:
                 str(self.settings.explainer.url),
                 self.settings.explainer.api_key,
                 self.settings.explainer.model,
+                self.settings.explainer.parallelism,
             )
         return self._explainer_service
 

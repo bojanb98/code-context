@@ -34,11 +34,11 @@ class ExplainerService:
     )
     async def _get_explanation(self, code_chunk: str) -> str:
         response = await self.openai.chat.completions.create(
-            model=self.model,
             messages=[
                 {"role": "system", "content": ExplainerService._SYSTEM_PROMPT},
                 {"role": "user", "content": code_chunk},
             ],
+            model=self.model,
         )
         explanation = response.choices[0].message.content
         if explanation is None:

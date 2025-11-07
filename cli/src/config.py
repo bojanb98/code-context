@@ -55,11 +55,14 @@ class ExplainerConfig(BaseModel):
         default="ollama",
         description="API key for explainer service",
     )
-    model: str = Field(default="gemma3:1b-it-q8_0 ", description="Explainer model name")
+    model: str = Field(default="gemma3:1b-it-q8_0", description="Explainer model name")
+    parallelism: int = Field(
+        default=2, description="Number of parallel explanation requests"
+    )
     embedding: EmbeddingConfig = EmbeddingConfig(
         url=HttpUrl("http://localhost:11434/v1"),
         model="hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:F16",
-        size=512,
+        size=768,
     )
 
 
