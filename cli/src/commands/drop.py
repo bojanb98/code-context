@@ -2,6 +2,8 @@ from pathlib import Path
 
 from core import get_collection_name
 
+from config import delete_config
+
 
 async def drop_command(
     path: Path = Path("."),
@@ -22,3 +24,5 @@ async def drop_command(
     indexing_service = services.get_indexing_service()
 
     await indexing_service.delete(path)
+
+    delete_config(collection_name)

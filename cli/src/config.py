@@ -45,8 +45,6 @@ class EmbeddingConfig(BaseModel):
 
 
 class ExplainerConfig(BaseModel):
-
-    enabled: bool = Field(default=False, description="Whether explanations are enabled")
     url: HttpUrl = Field(
         default=HttpUrl("http://localhost:11434/v1"),
         description="Explainer service URL",
@@ -58,11 +56,6 @@ class ExplainerConfig(BaseModel):
     model: str = Field(default="gemma3:1b-it-q8_0", description="Explainer model name")
     parallelism: int = Field(
         default=2, description="Number of parallel explanation requests"
-    )
-    embedding: EmbeddingConfig = EmbeddingConfig(
-        url=HttpUrl("http://localhost:11434/v1"),
-        model="hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:F16",
-        size=768,
     )
 
 
@@ -98,6 +91,14 @@ class LoggingConfig(BaseModel):
     enabled: bool = Field(default=True, description="Whether debug logging is enabled")
 
 
+class FeaturesConfig(BaseModel):
+
+    docs: bool = Field(default=True, description="Whether doc parsing is enabled")
+    explanation: bool = Field(
+        default=True, description="Whether explanation generation is enabled"
+    )
+
+
 class AppSettings(BaseSettings):
 
     model_config = SettingsConfigDict(
@@ -110,7 +111,15 @@ class AppSettings(BaseSettings):
     )
 
     qdrant: QdrantConfig = Field(default_factory=QdrantConfig)
-    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    code_embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    doc_embedding: EmbeddingConfig = Field(
+        default=EmbeddingConfig(
+            url=HttpUrl("http://localhost:11434/v1"),
+            model="hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:F16",
+            size=768,
+        )
+    )
+    features: FeaturesConfig = Field(default_factory=FeaturesConfig)
     explainer: ExplainerConfig = Field(default_factory=ExplainerConfig)
     chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)

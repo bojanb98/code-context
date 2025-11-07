@@ -14,8 +14,17 @@ Embedding = list[float]
 
 class EmbeddingService:
 
-    def __init__(self, base_url: str, api_key: str) -> None:
-        self.openai = AsyncOpenAI(base_url=base_url, api_key=api_key)
+    def __init__(
+        self, base_url: str, api_key: str, model: str, size: int, batch_size: int = 32
+    ) -> None:
+        self._openai = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        self._model = model
+        self._batch_size = batch_size
+        self._size = size
+
+    @property
+    def size(self) -> int:
+        return self._size
 
     @retry(
         wait=wait_exponential(min=5, max=20),
@@ -23,8 +32,8 @@ class EmbeddingService:
         retry=retry_if_exception_type(RateLimitError),
         before_sleep=lambda x: logger.warning("Rate limit hit {} {}", x.fn, x.args),
     )
-    async def generate_embedding(self, query: str, model: str) -> Embedding:
-        response = await self.openai.embeddings.create(input=query, model=model)
+    async def generate_embedding(self, query: str) -> Embedding:
+        response = await self._openai.embeddings.create(input=query, model=self._model)
 
         return response.data[0].embedding
 
@@ -34,20 +43,17 @@ class EmbeddingService:
         retry=retry_if_exception_type(RateLimitError),
         before_sleep=lambda x: logger.warning("Rate limit hit {} {}", x.fn, x.args),
     )
-    async def _get_embeddings(self, queries: list[str], model) -> list[Embedding]:
-        response = await self.openai.embeddings.create(input=queries, model=model)
+    async def _get_embeddings(self, queries: list[str]) -> list[Embedding]:
+        response = await self._openai.embeddings.create(
+            input=queries, model=self._model
+        )
         return [d.embedding for d in response.data]
 
-    async def generate_embeddings(
-        self, queries: list[str], model: str, batch_size: int = 32
-    ) -> list[Embedding]:
+    async def generate_embeddings(self, queries: list[str]) -> list[Embedding]:
         all_embeddings: list[Embedding] = []
 
-        for query_batch in itertools.batched(queries, batch_size):
-            response = await self.openai.embeddings.create(
-                input=query_batch, model=model
-            )
-            embedding_batch = [d.embedding for d in response.data]
+        for query_batch in itertools.batched(queries, self._batch_size):
+            embedding_batch = await self._get_embeddings(list(query_batch))
             all_embeddings.extend(embedding_batch)
 
         return all_embeddings

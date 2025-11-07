@@ -24,20 +24,6 @@ ITER_BATCH_SIZE = 128
 
 
 @dataclass
-class EmbeddingConfig:
-    service: EmbeddingService
-    model: str
-    size: int
-    batch_size: int = 32
-
-
-@dataclass
-class ExplainerConfig:
-    service: ExplainerService
-    embedding: EmbeddingConfig
-
-
-@dataclass
 class Explanations:
     text: list[str]
     embeddings: list[Embedding]
@@ -48,9 +34,17 @@ class IndexingService:
         self,
         client: AsyncQdrantClient,
         file_syncrhonizer: FileSynchronizer,
+        splitter: Splitter,
+        code_service: EmbeddingService,
+        doc_service: EmbeddingService | None = None,
+        explainer: ExplainerService | None = None,
     ):
         self.client = client
         self.synchronizer = file_syncrhonizer
+        self.splitter = splitter
+        self.code_service = code_service
+        self.doc_service = doc_service
+        self.explainer = explainer
 
     async def delete(self, codebase_path: Path) -> None:
         codebase_path = codebase_path.expanduser().absolute().resolve()
@@ -66,10 +60,6 @@ class IndexingService:
     async def index(
         self,
         codebase_path: Path,
-        splitter: Splitter,
-        code_config: EmbeddingConfig,
-        doc_config: EmbeddingConfig | None = None,
-        explainer: ExplainerService | None = None,
         force_reindex: bool = False,
     ) -> None:
         """Index a codebase, automatically handling initial indexing or incremental reindexing.
@@ -90,8 +80,8 @@ class IndexingService:
 
         await self._prepare_collection(
             codebase_path,
-            code_config.size,
-            doc_config.size if doc_config is not None else None,
+            self.code_service.size,
+            self.doc_service.size if self.doc_service is not None else None,
             force_reindex,
         )
 
@@ -103,19 +93,15 @@ class IndexingService:
             return
 
         await self._delete_file_chunks(collection_name, results.to_remove)
-        chunks = await self._get_chunks(codebase_path, results.to_add, splitter)
+        chunks = await self._get_chunks(codebase_path, results.to_add, self.splitter)
         for chunk_batch in itertools.batched(chunks, ITER_BATCH_SIZE):
             contents = [c.content for c in chunk_batch]
-            code_embeddings = await code_config.service.generate_embeddings(
-                contents, code_config.model, code_config.batch_size
-            )
+            code_embeddings = await self.code_service.generate_embeddings(contents)
             doc_embeddings: list[Embedding] | None = None
-            if doc_config is not None:
-                chunk_batch = await self._augment_with_explanations(
-                    list(chunk_batch), explainer
-                )
-                doc_embeddings = await doc_config.service.generate_embeddings(
-                    [c.doc or "unknown" for c in chunk_batch], doc_config.model
+            if self.doc_service is not None:
+                chunk_batch = await self._augment_with_explanations(list(chunk_batch))
+                doc_embeddings = await self.doc_service.generate_embeddings(
+                    [c.doc or "unknown" for c in chunk_batch]
                 )
 
             points = await self._get_points(
@@ -125,9 +111,9 @@ class IndexingService:
             await self.client.upsert(collection_name, points)
 
     async def _augment_with_explanations(
-        self, chunks: list[CodeChunk], explainer: ExplainerService | None
+        self, chunks: list[CodeChunk]
     ) -> list[CodeChunk]:
-        if explainer is None:
+        if self.explainer is None:
             return chunks
 
         indices = [
@@ -135,7 +121,7 @@ class IndexingService:
             for i, c in enumerate(chunks)
             if c.doc is None or not c.doc.strip()
         ]
-        explanations = await explainer.get_explanations([i[1] for i in indices])
+        explanations = await self.explainer.get_explanations([i[1] for i in indices])
 
         for idx, _ in indices:
             chunk = chunks[idx]
@@ -272,20 +258,6 @@ class IndexingService:
             vectors_config=dense_vectors,
             sparse_vectors_config=sparse_vectors,
         )
-
-    async def _get_embeddings(
-        self, chunks: list[CodeChunk], config: EmbeddingConfig
-    ) -> list[Embedding]:
-        all_embeddings: list[Embedding] = []
-
-        for chunk_batch in itertools.batched(chunks, config.batch_size):
-            contents = [c.content for c in chunk_batch]
-            embeddings = await config.service.generate_embeddings(
-                contents, config.model
-            )
-            all_embeddings.extend(embeddings)
-
-        return all_embeddings
 
     async def _delete_file_chunks(
         self, collection_name: str, file_paths: list[str]

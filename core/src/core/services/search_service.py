@@ -17,7 +17,7 @@ from .utils import EmbeddingService, get_collection_name
 @dataclass
 class SearchResult:
     content: str
-    explanation: str | None
+    doc: str | None
     relative_path: str
     start_line: int
     end_line: int
@@ -29,28 +29,23 @@ class SearchService:
     def __init__(
         self,
         client: AsyncQdrantClient,
-        embedding_service: EmbeddingService,
-        code_model: str,
-        doc_model: str,
+        code_serivce: EmbeddingService,
+        doc_serivce: EmbeddingService | None,
     ):
         self.client = client
-        self.embedding_service = embedding_service
-        self.code_model = code_model
-        self.doc_model = doc_model
+        self.code_serivce = code_serivce
+        self.doc_service = doc_serivce
 
     async def _perform_search(
         self,
         collection_name: str,
         query_text: str,
-        has_explanations: bool = False,
         limit: int = 10,
         threshold: float = 0.0,
     ) -> list[SearchResult]:
         prefetch = [
             models.Prefetch(
-                query=await self.embedding_service.generate_embedding(
-                    query_text, self.code_model
-                ),
+                query=await self.code_serivce.generate_embedding(query_text),
                 using=CODE_DENSE,
                 limit=limit,
             ),
@@ -61,12 +56,10 @@ class SearchService:
             ),
         ]
 
-        if has_explanations:
+        if self.doc_service is not None:
             prefetch.append(
                 models.Prefetch(
-                    query=await self.embedding_service.generate_embedding(
-                        query_text, self.doc_model
-                    ),
+                    query=await self.doc_service.generate_embedding(query_text),
                     using=DOC_DENSE,
                     limit=limit,
                 ),
@@ -93,7 +86,7 @@ class SearchService:
             results.append(
                 SearchResult(
                     content=payload.get("content", ""),
-                    explanation=payload.get("explanation", None),
+                    doc=payload.get("doc", None),
                     relative_path=payload.get("relative_path", ""),
                     start_line=payload.get("start_line", 0),
                     end_line=payload.get("end_line", 0),
@@ -109,7 +102,6 @@ class SearchService:
         self,
         codebase_path: Path,
         query: str,
-        has_explanations: bool = False,
         top_k: int = 5,
         threshold: float = 0.5,
     ) -> list[SearchResult]:
@@ -155,9 +147,7 @@ class SearchService:
             )
 
         logger.debug("Searching with query: '{}'", query)
-        results = await self._perform_search(
-            collection_name, query, has_explanations, top_k, threshold
-        )
+        results = await self._perform_search(collection_name, query, top_k, threshold)
 
         logger.debug("Found {} relevant results", len(results))
         return results

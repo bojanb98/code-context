@@ -46,8 +46,8 @@ def print_results(results: list[SearchResult], output_type: OutputType) -> None:
             print(f"Path: {result.relative_path}")
             print(f"Start line: {result.start_line}")
             print(f"End line: {result.end_line}")
-            if result.explanation:
-                print(f"Explanation: {result.explanation}")
+            if result.doc is not None:
+                print(f"Explanation: {result.doc}")
             print(Syntax(result.content.strip(), result.language, line_numbers=False))
 
 
@@ -83,8 +83,6 @@ async def search_command(
 
     search_service = services.get_search_service()
 
-    results = await search_service.search(
-        path, query, settings.explainer.enabled, top_k=limit, threshold=threshold
-    )
+    results = await search_service.search(path, query, top_k=limit, threshold=threshold)
 
     print_results(results, output)

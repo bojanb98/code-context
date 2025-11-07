@@ -1,7 +1,5 @@
 from .services import (
-    EmbeddingConfig,
     EmbeddingService,
-    ExplainerConfig,
     ExplainerService,
     IndexingService,
     SearchResult,
@@ -13,8 +11,6 @@ from .sync import FileSynchronizer
 
 __all__ = [
     "IndexingService",
-    "EmbeddingConfig",
-    "ExplainerConfig",
     "ExplainerService",
     "EmbeddingService",
     "SearchService",

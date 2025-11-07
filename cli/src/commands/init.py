@@ -34,48 +34,62 @@ async def init_command() -> None:
     use_ollama = Confirm.ask("Use Ollama for embeddings?", default=True)
 
     if use_ollama:
-        config.embedding.url = HttpUrl("http://localhost:11434/v1")
-        config.embedding.api_key = "ollama"
-        config.embedding.model = Prompt.ask(
-            "Ollama embedding model", default=config.embedding.model
+        config.code_embedding.url = HttpUrl("http://localhost:11434/v1")
+        config.code_embedding.api_key = "ollama"
+        config.code_embedding.model = Prompt.ask(
+            "Ollama embedding model", default=config.code_embedding.model
         )
-        config.embedding.size = IntPrompt.ask(
-            "Embedding size", default=config.embedding.size
+        config.code_embedding.size = IntPrompt.ask(
+            "Embedding size", default=config.code_embedding.size
         )
     else:
-        config.embedding.url = HttpUrl(
-            Prompt.ask("Embedding service URL", default=str(config.embedding.url))
+        config.code_embedding.url = HttpUrl(
+            Prompt.ask("Embedding service URL", default=str(config.code_embedding.url))
         )
-        config.embedding.api_key = Prompt.ask(
-            "Embedding service API key", default=config.embedding.api_key, password=True
+        config.code_embedding.api_key = Prompt.ask(
+            "Embedding service API key",
+            default=config.code_embedding.api_key,
+            password=True,
         )
-        config.embedding.model = Prompt.ask(
-            "Embedding model", default=config.embedding.model
+        config.code_embedding.model = Prompt.ask(
+            "Embedding model", default=config.code_embedding.model
         )
-        config.embedding.size = IntPrompt.ask(
-            "Embedding size", default=config.embedding.size
+        config.code_embedding.size = IntPrompt.ask(
+            "Embedding size", default=config.code_embedding.size
         )
 
-    print("\n[bold]Explainer Service[/bold]")
-    use_explainer = Confirm.ask(
-        "Enable code explanations? (may slow down indexing)", default=False
+    use_docs = Confirm.ask(
+        "Enable doc extraction? (may slightly slow down indexing)", default=True
     )
-    config.explainer.enabled = use_explainer
+    use_explainer = Confirm.ask(
+        "Enable code explanations? (may significantly slow down indexing)",
+        default=False,
+    )
+
+    config.features.docs = use_docs
+    config.features.explanation = use_explainer
+
+    if use_docs:
+        print("\n[bold]Doccummentation Embeddings[/bold]")
+        config.doc_embedding.url = config.code_embedding.url
+        config.doc_embedding.api_key = config.code_embedding.api_key
+        config.doc_embedding.model = Prompt.ask(
+            "Doc embedding model", default=config.doc_embedding.model
+        )
+        config.doc_embedding.size = IntPrompt.ask(
+            "Explanation embedding size", default=config.doc_embedding.size
+        )
 
     if use_explainer:
-        config.explainer.url = config.embedding.url
-        config.explainer.api_key = config.embedding.api_key
+        print(
+            "\n[bold]Code explanations (generated only if no docummentation extracted)[/bold]"
+        )
+        config.explainer.url = config.code_embedding.url
+        config.explainer.api_key = config.code_embedding.api_key
         config.explainer.model = Prompt.ask(
             "Explainer model", default=config.explainer.model
         )
-        config.explainer.embedding.model = Prompt.ask(
-            "Expalanations embedding model", default=config.explainer.embedding.model
-        )
-        config.explainer.embedding.size = IntPrompt.ask(
-            "Explanation embedding size", default=config.explainer.embedding.size
-        )
 
-    # Chunking configuration
     print("\n[bold]Code Chunking[/bold]")
     config.chunking.chunk_size = IntPrompt.ask(
         "Chunk size (characters)", default=config.chunking.chunk_size
