@@ -13,7 +13,7 @@ def create_app() -> App:
     return App(
         name="code-context",
         help="Semantic code search CLI - Index and search your codebase using AI",
-        version="0.1.0",
+        version="1.3.0",
     )
 
 

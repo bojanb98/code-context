@@ -1,7 +1,5 @@
 # CLAUDE.md
 
----
-
 ## Goals
 - Maintain **readability, determinism, and testability**.
 - Prioritize **clarity and maintainability** over abstraction.
