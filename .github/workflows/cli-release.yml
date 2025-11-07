@@ -15,8 +15,10 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: main.bin
+            target_name: code-context
           - os: windows-latest
             asset_name: main.exe
+            target_name: code-context.exe
 
     steps:
       - name: Checkout repository
@@ -118,4 +120,4 @@ jobs:
             Write-Error "Error: $file not found"
             exit 1
           }
-          gh release upload "${{ github.event.release.tag_name }}" $file --clobber --repo "${{ github.repository }}"
+          gh release upload "${{ github.event.release.tag_name }}" $file --clobber --repo "${{ github.repository }}" --name "${{ matrix.target_name }}"
