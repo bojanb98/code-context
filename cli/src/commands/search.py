@@ -57,6 +57,7 @@ async def search_command(
     limit: int = 5,
     output: OutputType = "simple",
     threshold: float = 0.0,
+    max_graph_hops: int | None = None,
 ) -> None:
     """Search indexed code semantically.
 
@@ -65,6 +66,7 @@ async def search_command(
         path: Path to search in (defaults to current directory)
         limit: Maximum number of results to return (1-50)
         output: Output format: simple (default), json (full details), simple-json (content only)
+        max_graph_hops: Optional number of graph hops to expand results (requires graph feature)
     """
     from rich import print
 
@@ -83,6 +85,17 @@ async def search_command(
 
     search_service = services.get_search_service()
 
-    results = await search_service.search(path, query, top_k=limit, threshold=threshold)
+    graph_hops = max_graph_hops
+    if graph_hops is not None and not settings.features.graph:
+        print("Graph search is disabled in configuration; ignoring --max-graph-hops.")
+        graph_hops = None
+
+    results = await search_service.search(
+        path,
+        query,
+        top_k=limit,
+        threshold=threshold,
+        max_graph_hops=graph_hops,
+    )
 
     print_results(results, output)

@@ -97,6 +97,28 @@ class FeaturesConfig(BaseModel):
     explanation: bool = Field(
         default=True, description="Whether explanation generation is enabled"
     )
+    graph: bool = Field(
+        default=False,
+        description="Whether graph search is enabled (requires FalkorDB)",
+    )
+
+
+class GraphConfig(BaseModel):
+
+    host: str = Field(default="localhost", description="FalkorDB host")
+    port: PositiveInt = Field(
+        default=6379,
+        description="FalkorDB port",
+        le=65535,
+    )
+    username: str | None = Field(
+        default=None,
+        description="FalkorDB username",
+    )
+    password: str | None = Field(
+        default=None,
+        description="FalkorDB password",
+    )
 
 
 class AppSettings(BaseSettings):
@@ -124,6 +146,7 @@ class AppSettings(BaseSettings):
     chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    graph: GraphConfig = Field(default_factory=GraphConfig)
 
 
 def load_config(collection_name: str | None = None) -> tuple[AppSettings, bool]:

@@ -1,6 +1,7 @@
 from .services import (
     EmbeddingService,
     ExplainerService,
+    GraphService,
     IndexingService,
     SearchResult,
     SearchService,
@@ -13,6 +14,7 @@ __all__ = [
     "IndexingService",
     "ExplainerService",
     "EmbeddingService",
+    "GraphService",
     "SearchService",
     "SearchResult",
     "TreeSitterSplitter",

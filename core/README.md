@@ -13,11 +13,12 @@ Core library for semantic code search and indexing. Provides hybrid retrieval, l
 from core import (
     IndexingService, SearchService,
     EmbeddingService, ExplainerService,
+    GraphService,
     TreeSitterSplitter, FileSynchronizer,
 )
 ````
 
-`SearchService` expects code and (optionally) doc embedding services; `IndexingService` wires client, synchronizer, splitter, embedding providers, and optional explainer. 
+`SearchService` expects code and (optionally) doc embedding services; `IndexingService` wires client, synchronizer, splitter, embedding providers, and optional explainer/graph service. Provide a `GraphService` instance (FalkorDB) to build and reuse GraphRAG edges automatically after every index.
 
 ## Correct Usage Example
 
@@ -28,6 +29,7 @@ from qdrant_client import AsyncQdrantClient
 from core import (
     IndexingService, SearchService,
     EmbeddingService, ExplainerService,
+    GraphService,
     TreeSitterSplitter, FileSynchronizer,
 )
 
@@ -56,6 +58,9 @@ async def main():
     splitter = TreeSitterSplitter(chunk_size=2500, chunk_overlap=300, extract_docs=True)
     synchronizer = FileSynchronizer(Path.home() / ".code-context" / "snapshots")
 
+    # Optional graph backend (FalkorDB)
+    graph = GraphService(host="localhost", port=6379)
+
     # Services
     indexing = IndexingService(
         client,
@@ -64,8 +69,9 @@ async def main():
         code_embed,
         doc_embed,
         explainer,
+        graph,
     )
-    search = SearchService(client, code_embed, doc_embed)  # doc_embed can be None
+    search = SearchService(client, code_embed, doc_embed, graph)
 
     # Index
     await indexing.index(Path("./my-project"), force=False)

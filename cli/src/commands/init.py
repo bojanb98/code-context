@@ -28,7 +28,6 @@ async def init_command() -> None:
             "Qdrant API key", default=config.qdrant.api_key, password=True
         )
 
-    # Embedding service configuration
     print("\n[bold]Embedding Service[/bold]")
 
     use_ollama = Confirm.ask("Use Ollama for embeddings?", default=True)
@@ -61,13 +60,8 @@ async def init_command() -> None:
     use_docs = Confirm.ask(
         "Enable doc extraction? (may slightly slow down indexing)", default=True
     )
-    use_explainer = Confirm.ask(
-        "Enable code explanations? (may significantly slow down indexing)",
-        default=False,
-    )
 
     config.features.docs = use_docs
-    config.features.explanation = use_explainer
 
     if use_docs:
         print("\n[bold]Doccummentation Embeddings[/bold]")
@@ -80,6 +74,11 @@ async def init_command() -> None:
             "Explanation embedding size", default=config.doc_embedding.size
         )
 
+    use_explainer = Confirm.ask(
+        "Enable code explanations? (may significantly slow down indexing)",
+        default=False,
+    )
+    config.features.explanation = use_explainer
     if use_explainer:
         print(
             "\n[bold]Code explanations (generated only if no docummentation extracted)[/bold]"
@@ -89,6 +88,27 @@ async def init_command() -> None:
         config.explainer.model = Prompt.ask(
             "Explainer model", default=config.explainer.model
         )
+
+    use_graph = Confirm.ask(
+        "Enable graph search? (requires FalkorDB running locally or remotely)",
+        default=False,
+    )
+    config.features.graph = use_graph
+    if use_graph:
+        print("\n[bold]Graph Service[/bold]")
+        config.graph.host = Prompt.ask("FalkorDB host", default=config.graph.host)
+        config.graph.port = IntPrompt.ask("FalkorDB port", default=config.graph.port)
+        username = Prompt.ask(
+            "FalkorDB username (leave empty for none)",
+            default=config.graph.username or "",
+        )
+        config.graph.username = username or None
+        password = Prompt.ask(
+            "FalkorDB password (leave empty for none)",
+            default=config.graph.password or "",
+            password=True,
+        )
+        config.graph.password = password or None
 
     print("\n[bold]Code Chunking[/bold]")
     config.chunking.chunk_size = IntPrompt.ask(

@@ -36,7 +36,12 @@ def mcp_command() -> None:
         services = ServiceFactory(settings)
 
         search_service = services.get_search_service()
-        results = await search_service.search(Path(path), query, top_k=limit)
+
+        results = await search_service.search(
+            Path(path),
+            query,
+            top_k=limit,
+        )
 
         return results
 

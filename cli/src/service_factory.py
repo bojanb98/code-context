@@ -5,6 +5,7 @@ from core import (
     EmbeddingService,
     ExplainerService,
     FileSynchronizer,
+    GraphService,
     IndexingService,
     SearchService,
     TreeSitterSplitter,
@@ -29,6 +30,7 @@ class ServiceFactory:
         self._splitter: TreeSitterSplitter | None = None
         self._indexing_service: IndexingService | None = None
         self._search_service: SearchService | None = None
+        self._graph_service: GraphService | None = None
         self.initialize_logger()
 
     def initialize_logger(self) -> None:
@@ -58,6 +60,7 @@ class ServiceFactory:
         self._splitter = None
         self._indexing_service = None
         self._search_service = None
+        self._graph_service = None
         self._initialized = False
 
     def get_client(self) -> AsyncQdrantClient:
@@ -128,8 +131,21 @@ class ServiceFactory:
                 self.get_code_embedding_service(),
                 self.get_doc_embedding_service(),
                 self.get_explainer_service(),
+                self.get_graph_service(),
             )
         return self._indexing_service
+
+    def get_graph_service(self) -> GraphService | None:
+        if not self.settings.features.graph:
+            return None
+        if not self._graph_service:
+            self._graph_service = GraphService(
+                host=self.settings.graph.host,
+                port=self.settings.graph.port,
+                username=self.settings.graph.username,
+                password=self.settings.graph.password,
+            )
+        return self._graph_service
 
     def get_search_service(self) -> SearchService:
         if not self._search_service:
@@ -137,5 +153,6 @@ class ServiceFactory:
                 self.get_client(),
                 self.get_code_embedding_service(),
                 self.get_doc_embedding_service(),
+                self.get_graph_service(),
             )
         return self._search_service

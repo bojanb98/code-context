@@ -11,7 +11,7 @@ from .constants import (
     DOC_SPARSE,
     TEXT_EMBEDDING_MODEL,
 )
-from .utils import EmbeddingService, get_collection_name
+from .utils import EmbeddingService, GraphService, get_collection_name
 
 
 @dataclass
@@ -31,10 +31,12 @@ class SearchService:
         client: AsyncQdrantClient,
         code_serivce: EmbeddingService,
         doc_serivce: EmbeddingService | None,
+        graph_service: GraphService | None = None,
     ):
         self.client = client
         self.code_serivce = code_serivce
         self.doc_service = doc_serivce
+        self.graph_service = graph_service
 
     async def _perform_search(
         self,
@@ -42,7 +44,7 @@ class SearchService:
         query_text: str,
         limit: int = 10,
         threshold: float = 0.0,
-    ) -> list[SearchResult]:
+    ) -> tuple[list[SearchResult], list[str]]:
         prefetch = [
             models.Prefetch(
                 query=await self.code_serivce.generate_embedding(query_text),
@@ -81,8 +83,10 @@ class SearchService:
         )
 
         results = []
+        point_ids: list[str] = []
         for point in search_result.points:
             payload = point.payload or {}
+            point_ids.append(str(point.id))
             results.append(
                 SearchResult(
                     content=payload.get("content", ""),
@@ -96,7 +100,7 @@ class SearchService:
             )
 
         logger.debug("Found {} results for text query", len(results))
-        return results
+        return results, point_ids
 
     async def search(
         self,
@@ -104,6 +108,7 @@ class SearchService:
         query: str,
         top_k: int = 5,
         threshold: float = 0.5,
+        max_graph_hops: int | None = None,
     ) -> list[SearchResult]:
         """Search indexed code semantically.
 
@@ -113,6 +118,7 @@ class SearchService:
             has_explanations: Whether codebase was indexed with explanation vector
             top_k: Number of results to return (1-50)
             threshold: Similarity threshold (0.0-1.0)
+            max_graph_hops: Optional graph expansion depth (>=1) to augment results
 
         Returns:
             List of search results
@@ -129,6 +135,9 @@ class SearchService:
 
         if not (0.0 <= threshold <= 1.0):
             raise ValueError("threshold must be between 0.0 and 1.0")
+
+        if max_graph_hops is not None and max_graph_hops < 1:
+            raise ValueError("max_graph_hops must be >= 1 when provided")
 
         codebase_path = codebase_path.expanduser().absolute().resolve()
 
@@ -147,7 +156,80 @@ class SearchService:
             )
 
         logger.debug("Searching with query: '{}'", query)
-        results = await self._perform_search(collection_name, query, top_k, threshold)
+        results, point_ids = await self._perform_search(
+            collection_name, query, top_k, threshold
+        )
 
-        logger.debug("Found {} relevant results", len(results))
-        return results
+        final_results = await self._expand_with_graph(
+            collection_name,
+            results,
+            point_ids,
+            top_k * 2,
+            max_graph_hops,
+        )
+
+        logger.debug("Found {} relevant results", len(final_results))
+        return final_results
+
+    async def _expand_with_graph(
+        self,
+        collection_name: str,
+        seeds: list[SearchResult],
+        seed_ids: list[str],
+        limit: int,
+        max_graph_hops: int | None,
+    ) -> list[SearchResult]:
+        if (
+            self.graph_service is None
+            or max_graph_hops is None
+            or not seeds
+            or not seed_ids
+        ):
+            return seeds
+
+        try:
+            graph_nodes, _ = await self.graph_service.neighbors(
+                collection_name=collection_name,
+                node_ids=seed_ids,
+                max_hops=max_graph_hops,
+            )
+        except Exception as exc:
+            logger.warning("Graph expansion failed: {}", exc)
+            return seeds
+
+        logger.debug(
+            "Graph expansion requested (hops=%d) produced %d nodes",
+            max_graph_hops,
+            len(graph_nodes),
+        )
+
+        result_by_id: dict[str, SearchResult] = {}
+        ordered_results: list[SearchResult] = []
+
+        for idx, seed in enumerate(seeds):
+            if idx >= len(seed_ids):
+                break
+            seed_id = seed_ids[idx]
+            result_by_id[seed_id] = seed
+            ordered_results.append(seed)
+
+        for node in graph_nodes:
+            node_id = node.id
+            if not node_id or node_id in result_by_id:
+                continue
+            result = SearchResult(
+                content=node.content or "",
+                doc=node.doc,
+                relative_path=node.relative_path or "",
+                start_line=node.start_line or 0,
+                end_line=node.end_line or 0,
+                language=node.language or "unknown",
+                score=0.0,
+            )
+            result_by_id[node_id] = result
+            ordered_results.append(result)
+
+            if len(ordered_results) >= limit:
+                break
+
+        return ordered_results[:limit]

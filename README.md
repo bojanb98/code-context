@@ -14,7 +14,7 @@ Supports any OpenAI API compatible provider, including Ollama. If you want to qu
 ```
 docker compose up -d
 ```
-from the repo root. Default CLI configuration values are already setup to work with local stack.
+from the repo root. Default CLI configuration values are already setup to work with local stack. FalkorDB usage is optional.
 
 Index and search code:
 ```bash
@@ -35,6 +35,7 @@ code-context mcp                     # Start MCP server for tool integration
 3. **Incremental reindexing** - based on xxhash hashing
 4. **Docstring extraction** (Optional) - creates additional bm25 + dense index for search
 5. **Explanation generation** (Optional) - augments chunks with no docstring using small LLM
+6. **Graph RAG** (Optional) - additional graph traversal + reranking step based on initial chunks, backed by FalkorDB
 
 ## Architecture
 
