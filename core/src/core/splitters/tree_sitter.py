@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 
 from loguru import logger
@@ -5,6 +6,7 @@ from tree_sitter import Node, Parser
 from tree_sitter_language_pack import SupportedLanguage, get_parser
 
 from .base import BaseSplitter
+from .ids import make_chunk_id_from_components
 from .types import CodeChunk
 from .utils import _LANGUAGE_EXTENSIONS, SPLITTABLE_NODE_TYPES
 
@@ -104,7 +106,21 @@ class TreeSitterSplitter(BaseSplitter):
         if not splittable_types:
             raise RuntimeError(f"Invalid splittable types for {lang}")
 
-        def traverse(current_node: Node) -> None:
+        identifier_counters: dict[tuple[str | None, str], int] = defaultdict(int)
+
+        def next_identifier(
+            parent_id: str | None, node_type: str, preferred: str | None
+        ) -> str:
+            base = preferred or node_type
+            key = (parent_id or "__root__", base)
+            occurrence = identifier_counters[key]
+            identifier_counters[key] += 1
+
+            if preferred:
+                return base if occurrence == 0 else f"{base}#{occurrence}"
+            return f"{base}@{occurrence}"
+
+        def traverse(current_node: Node, parent_chunk_id: str | None = None) -> None:
             if current_node.type in splittable_types:
                 start_line = current_node.start_point[0] + 1
                 end_line = current_node.end_point[0] + 1
@@ -112,32 +128,58 @@ class TreeSitterSplitter(BaseSplitter):
                 content, doc = self._node_code_and_doc(current_node, lang, code)
 
                 if content and content.strip():
+                    identifier = self._node_identifier(current_node, code)
+                    resolved_identifier = next_identifier(
+                        parent_chunk_id, current_node.type, identifier
+                    )
+                    chunk_id = make_chunk_id_from_components(
+                        file_path,
+                        current_node.type,
+                        parent_chunk_id,
+                        resolved_identifier,
+                    )
                     chunks.append(
                         CodeChunk(
+                            id=chunk_id,
                             content=content.strip(),
                             start_line=start_line,
                             end_line=end_line,
                             language=lang,
-                            file_path=str(file_path),
+                            file_path=file_path,
                             doc=doc.strip() if doc is not None else None,
+                            node=current_node,
+                            parent_chunk_id=parent_chunk_id,
                         )
                     )
+                else:
+                    chunk_id = None
+            else:
+                chunk_id = None
 
             for child in current_node.children:
-                traverse(child)
+                traverse(child, chunk_id or parent_chunk_id)
 
         traverse(node)
 
         if not chunks:
             total_lines = len(code.splitlines()) or 1
+            chunk_id = make_chunk_id_from_components(
+                file_path,
+                "text",
+                None,
+                "fallback-root",
+            )
             chunks.append(
                 CodeChunk(
+                    id=chunk_id,
                     content=code.strip(),
                     start_line=1,
                     end_line=total_lines,
                     language=lang,
-                    file_path=str(file_path),
+                    file_path=file_path,
                     doc=None,
+                    node=None,
+                    parent_chunk_id=None,
                 )
             )
 
@@ -188,6 +230,32 @@ class TreeSitterSplitter(BaseSplitter):
             return node_text, self._normalize_doc_text(leading_doc)
 
         return node_text, None
+
+    def _node_identifier(self, node: Node, code: str) -> str | None:
+        for field in ("name", "identifier", "declarator"):
+            field_node = node.child_by_field_name(field)
+            if field_node is None:
+                continue
+            text = self._slice(code, field_node.start_byte, field_node.end_byte).strip()
+            if text:
+                return text
+
+        identifier_node = self._find_identifier_descendant(node)
+        if identifier_node is None:
+            return None
+        text = self._slice(
+            code, identifier_node.start_byte, identifier_node.end_byte
+        ).strip()
+        return text or None
+
+    def _find_identifier_descendant(self, node: Node) -> Node | None:
+        for child in node.named_children:
+            if "identifier" in child.type:
+                return child
+            descendant = self._find_identifier_descendant(child)
+            if descendant is not None:
+                return descendant
+        return None
 
     def _extract_inline_docstring(
         self, node: Node, code: str
@@ -343,6 +411,7 @@ class TreeSitterSplitter(BaseSplitter):
         current_chunk = ""
         current_start_line = chunk.start_line
         current_line_count = 0
+        part_index = 0
 
         for i, line in enumerate(lines):
             line_with_newline = line + ("\n" if i < len(lines) - 1 else "")
@@ -351,14 +420,19 @@ class TreeSitterSplitter(BaseSplitter):
                 len(current_chunk) + len(line_with_newline) > self.chunk_size
                 and current_chunk.strip()
             ):
+                part_id = self._make_sub_chunk_id(chunk, part_index)
+                part_index += 1
                 sub_chunks.append(
                     CodeChunk(
+                        id=part_id,
                         content=current_chunk.strip(),
                         start_line=current_start_line,
                         end_line=current_start_line + current_line_count - 1,
                         language=chunk.language,
                         file_path=chunk.file_path,
                         doc=chunk.doc,
+                        node=chunk.node,
+                        parent_chunk_id=chunk.parent_chunk_id,
                     )
                 )
                 current_chunk = line_with_newline
@@ -369,14 +443,18 @@ class TreeSitterSplitter(BaseSplitter):
                 current_line_count += 1
 
         if current_chunk.strip():
+            part_id = self._make_sub_chunk_id(chunk, part_index)
             sub_chunks.append(
                 CodeChunk(
+                    id=part_id,
                     content=current_chunk.strip(),
                     start_line=current_start_line,
                     end_line=current_start_line + current_line_count - 1,
                     language=chunk.language,
                     file_path=chunk.file_path,
                     doc=chunk.doc,
+                    node=chunk.node,
+                    parent_chunk_id=chunk.parent_chunk_id,
                 )
             )
 
@@ -402,12 +480,15 @@ class TreeSitterSplitter(BaseSplitter):
 
             overlapped.append(
                 CodeChunk(
+                    id=chunk.id,
                     content=content,
                     start_line=start_line,
                     end_line=end_line,
                     language=chunk.language,
                     file_path=chunk.file_path,
                     doc=chunk.doc,
+                    node=chunk.node,
+                    parent_chunk_id=chunk.parent_chunk_id,
                 )
             )
 
@@ -415,6 +496,16 @@ class TreeSitterSplitter(BaseSplitter):
 
     def _get_line_count(self, text: str) -> int:
         return len(text.splitlines()) if text else 0
+
+    def _make_sub_chunk_id(self, chunk: CodeChunk, part_index: int) -> str:
+        node_type = chunk.node.type if chunk.node is not None else "text"
+        identifier = f"{chunk.id}:part-{part_index}"
+        return make_chunk_id_from_components(
+            Path(chunk.file_path),
+            node_type,
+            chunk.parent_chunk_id,
+            identifier,
+        )
 
     async def _fallback_text_split(self, code: str, file_path: Path) -> list[CodeChunk]:
         lang = _LANGUAGE_EXTENSIONS.get(file_path.suffix.lower().strip())
@@ -426,6 +517,18 @@ class TreeSitterSplitter(BaseSplitter):
 
         current_chunk = ""
         current_start_line = 1
+        block_index = 0
+
+        def next_block_id() -> str:
+            nonlocal block_index
+            identifier = f"text-block-{block_index}"
+            block_index += 1
+            return make_chunk_id_from_components(
+                file_path,
+                "text",
+                None,
+                identifier,
+            )
 
         for i, line in enumerate(lines):
             line_with_newline = line + ("\n" if i < len(lines) - 1 else "")
@@ -436,12 +539,15 @@ class TreeSitterSplitter(BaseSplitter):
             ):
                 chunks.append(
                     CodeChunk(
+                        id=next_block_id(),
                         content=current_chunk.strip(),
                         start_line=current_start_line,
                         end_line=i,
                         language=lang,
-                        file_path=str(file_path),
+                        file_path=file_path,
                         doc=None,
+                        node=None,
+                        parent_chunk_id=None,
                     )
                 )
                 current_chunk = line_with_newline
@@ -452,12 +558,15 @@ class TreeSitterSplitter(BaseSplitter):
         if current_chunk.strip():
             chunks.append(
                 CodeChunk(
+                    id=next_block_id(),
                     content=current_chunk.strip(),
                     start_line=current_start_line,
                     end_line=len(lines),
                     language=lang,
-                    file_path=str(file_path),
+                    file_path=file_path,
                     doc=None,
+                    node=None,
+                    parent_chunk_id=None,
                 )
             )
 

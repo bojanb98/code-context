@@ -46,19 +46,6 @@ def _match(file_path: str, pattern: str, is_dir: bool) -> bool:
 
 
 def _parse_gitignore_file(gitignore_path: Path, root: Path) -> List[Tuple[str, bool]]:
-    """
-    Parse a .gitignore file and return a list of (pattern, is_negation).
-    The returned patterns are expressed *relative to the repository root* when appropriate
-    so they can be compared against normalized relative paths produced by the scanner.
-
-    Supported subset:
-      - blank lines and comments (#) ignored
-      - negation with leading '!'
-      - leading slash '/' anchors pattern to .gitignore directory
-      - patterns with slashes are treated as path patterns relative to .gitignore directory
-      - patterns without slash match basenames (and will be applied only to descendants of the .gitignore dir)
-      - trailing slash retains directory-only semantics
-    """
     try:
         raw = gitignore_path.read_text(encoding="utf-8")
     except Exception:
@@ -136,14 +123,6 @@ def _ancestors_for(rel: Path) -> List[str]:
 async def scan_metadata(
     root: Path, ignore_patterns: Iterable[str] | frozenset[str] = frozenset()
 ) -> dict[str, tuple[int, float, int | None]]:
-    """
-    Fast metadata-only scan: returns mapping relative_path -> (size, mtime, inode).
-
-    This function now:
-      - accepts the usual global ignore patterns (the patterns you pass from FileSynchronizer)
-      - discovers .gitignore files and parses them
-      - applies combined ignore rules (global first, then ancestor .gitignore patterns from root->leaf).
-    """
     root = root.resolve()
     result: dict[str, tuple[int, float, int | None]] = {}
     stack: list[Path] = [root]
@@ -236,10 +215,6 @@ async def scan_metadata(
 
 
 async def scan_and_hash_all(root: Path, ignore_patterns) -> dict[str, FileRecord]:
-    """
-    NOTE: kept the original signature so callers (FileSynchronizer) don't need to change.
-    This function uses scan_metadata (which now supports .gitignore).
-    """
     meta = await scan_metadata(root, ignore_patterns)
     records: dict[str, FileRecord] = {}
     for rel, (size, mtime, inode) in meta.items():

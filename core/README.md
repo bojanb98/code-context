@@ -76,3 +76,24 @@ async def main():
 
 asyncio.run(main())
 ```
+
+## Graph Edges (experimental)
+
+`core.graph.GraphBuilder` can derive optional GraphRAG edges from the Tree-Sitter chunks that the splitter produces. The builder currently emits four edge types:
+- `PARENT_OF`: structural nesting (class → method, function → inner function)
+- `CONTINUES`: sequential segments produced when an oversize chunk is split
+- `CALLS`: call-site references that resolve to known symbols
+- `USES`: identifier/type references pointing to other chunks
+
+Same-file reference edges are disabled by default to keep noise low but can be enabled per invocation.
+
+```python
+from core.graph import GraphBuilder
+
+builder = GraphBuilder(include_intra_file_refs=True, include_parents=False)
+edges = builder.build(chunks)
+for edge in edges:
+    print(edge.edge_type, edge.source_id, edge.target_id)
+```
+
+Run the builder right after chunking, before embeddings are generated, to keep indexing incremental and avoid re-reading source files.

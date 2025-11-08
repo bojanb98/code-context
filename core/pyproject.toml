@@ -5,6 +5,7 @@ description = "Core module for semantic code search"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "falkordb>=1.2.0",
     "fastembed>=0.7.3",
     "loguru>=0.7.3",
     "openai>=2.6.1",
@@ -29,3 +30,11 @@ target-version = ["py313"]
 [build-system]
 requires = ["uv_build>=0.9.6,<0.10.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
+viz = [
+    "pyvis>=0.3.2",
+]

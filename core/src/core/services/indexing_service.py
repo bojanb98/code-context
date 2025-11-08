@@ -1,5 +1,4 @@
 import itertools
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -126,12 +125,15 @@ class IndexingService:
         for (idx, _), exp in zip(indices, explanations):
             chunk = chunks[idx]
             chunks[idx] = CodeChunk(
+                id=chunk.id,
                 content=chunk.content,
                 start_line=chunk.start_line,
                 end_line=chunk.end_line,
                 language=chunk.language,
                 file_path=chunk.file_path,
                 doc=exp,
+                node=chunk.node,
+                parent_chunk_id=chunk.parent_chunk_id,
             )
 
         return chunks
@@ -145,7 +147,7 @@ class IndexingService:
         if doc_embeddings is None:
             return [
                 models.PointStruct(
-                    id=uuid.uuid4().hex,
+                    id=chunk.id,
                     vector={
                         CODE_DENSE: emb,
                         CODE_SPARSE: models.Document(
@@ -165,7 +167,7 @@ class IndexingService:
             ]
         return [
             models.PointStruct(
-                id=uuid.uuid4().hex,
+                id=chunk.id,
                 vector={
                     CODE_DENSE: code_emb,
                     DOC_DENSE: exp_emb,
@@ -195,9 +197,10 @@ class IndexingService:
         all_chunks: list[CodeChunk] = []
         for file in files:
             file_path = codebase_path / file
+            relative_path = file_path.relative_to(codebase_path)
             try:
                 content = file_path.read_text(encoding="utf-8")
-                chunks = await splitter.split(content, file_path)
+                chunks = await splitter.split(content, relative_path)
                 all_chunks.extend(chunks)
             except Exception as e:
                 logger.debug("Unable to read a file {} {}", file_path, e)

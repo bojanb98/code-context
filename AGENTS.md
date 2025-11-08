@@ -1,89 +1,34 @@
-# AGENTS.md
+# Repository Guidelines
 
-## Goals
-- Maintain **readability, determinism, and testability**.
-- Prioritize **clarity and maintainability** over abstraction.
-- Code should be **functional, explicit, and side-effect aware**.
-- Every module should have a single clear purpose.
+## Project Structure & Architecture
+- `core/` holds the semantic engine: `services/` (index/search orchestration over Qdrant and AsyncOpenAI embeddings), `splitters/` (Tree-Sitter chunker plus fallbacks), `graph/` (optional GraphRAG edge builder consuming splitter output), and `sync/` (file snapshots + diffing). Keep new modules feature-focused and under 500 LOC.
+- `cli/` wraps the core via Cyclopts. `src/commands/` exposes `init/index/search/drop/mcp`, while `service_factory.py` wires Qdrant clients, embedding/explainer services, splitter, and synchronizer.
+- `docker-compose.yaml` runs local Qdrant and Ollama; use it before invoking CLI commands that hit external services. Dist builds live under `cli/main.*` or `core/dist/`.
 
----
+## Build, Test, and Development Commands
+- `uv sync` (run inside `core/` or `cli/`) installs the locked environment from `uv.lock`.
+- `uv run src/main.py <command>` (inside `cli/`) executes CLI flows, e.g. `uv run src/main.py index .` or `uv run src/main.py search "jwt middleware"`.
+- `uv run python -m build` (inside the desired package) produces distributable artifacts when needed.
+- `docker compose up -d` boots Qdrant and Ollama for local indexing/search loops.
 
-## Project Structure
+## Coding Style & Naming Conventions
+- Python 3.13+, type hints everywhere, functions target <50 lines. Prefer dataclasses for payloads (`SearchResult`, `Explanations`).
+- Use modern python types - lowercase list, tuple, dict, T | None...
+- Don't use Top file level docstrings
+- Don't import annotations from future and there are no optional imports (no if condition: import)
+- Prefer Literal["A", "B"] over Enums
+- Format with `black` (line length 88) and keep modules import-order tidy; run `uv run black .` before sharing patches.
+- Use descriptive snake_case for functions/variables, CapWords for classes, and module-level constants (e.g., `CODE_DENSE`) for shared config.
+- Logging goes through `loguru`; CLI output uses `rich` for any user-facing text.
 
-### `/core`
-Implements all logic for semantic indexing and search.
+## Testing Guidelines
+- No tests exist today and none should be added unless explicitly requested. When the need arises, default to `pytest` unit tests plus `testcontainers` for infrastructure touches (e.g., Qdrant). Place suites under `tests/`, naming files `test_<feature>.py`, and execute with `uv run pytest`.
 
-| Area | Description |
-|-------|--------------|
-| `core/services/` | Indexing, searching, embeddings, and explanation services |
-| `core/splitters/` | Tree-sitter based chunkers and related types |
-| `core/sync/` | Incremental file sync and hashing |
-| `core/services/utils/` | Helper services (embeddings, explainer, collection naming) |
+## Commit & Pull Request Guidelines
+- Follow the established conventional-style prefixes (`docs:`, `chore:`, etc.) seen in `git log`. Keep messages imperative and scoped to a single change.
+- Contributors should not push commits or open PRs directly from an automated agent—always hand off patches/diffs for human review.
+- PRs (when humans open them) must describe the problem, outline the solution, note config changes, and link any tracking issues. Screenshots or CLI transcripts help when touching user output.
 
-### `/cli`
-Thin async command layer wrapping core services with `cyclopts`.
-`ServiceFactory` handles construction and lifecycle of dependencies.
-
----
-
-## Design Principles
-
-### Code Style
-- Python 3.13+, `async`/`await` by default. 
-- Follow **PEP8 + Black + Ruff defaults**; 88-char lines.
-- Use **type hints** everywhere.
-- Prefer **dataclasses** for immutable records. 
-- Log via **loguru**, retry via **tenacity**, never print from core modules.
-- Avoid global state; configuration flows through `AppSettings`.
-
-### Architecture
-- **Core is framework-agnostic** and async-safe.
-- **CLI and integrations** (MCP, REST, etc.) compose services — they never re-implement logic.
-- **Tree-sitter** is the only parsing layer; do not add regex-based splitters.
-- File synchronization uses **deterministic hashing** and `.gitignore` inheritance.
-- All network operations (Qdrant, embedding APIs) must be **idempotent and retried** safely.
-- Favor **composition over inheritance**
-
-### Testing & Development
-
-* CLI development uses:
-
-  ```bash
-  uv run src/main.py <command>
-  ```
-* Avoid mocking external APIs; use small test containers or fixtures.
-* Unit tests should verify correctness of:
-
-  * File scanning and `.gitignore` merging
-  * Chunk extraction and doc inference
-  * Embedding and search vector schema
-
----
-
-## Tools
-
-| Purpose           | Tool                |
-| ----------------- | ------------------- |
-| CLI framework     | Cyclopts            |
-| Output formatting | Rich                |
-| Async client      | Qdrant Python SDK   |
-| Embeddings        | OpenAI API / Ollama |
-| Code parsing      | tree-sitter         |
-| Retry handling    | tenacity            |
-| Logging           | loguru              |
-| Build / Env       | uv                  |
-
----
-
-## Extending the System
-
-* Add new **splitters** or **embedders** by extending existing protocols.
-* New features must integrate through service interfaces — never modify CLI directly.
-* Keep API contracts stable across versions (`IndexingService`, `SearchService`).
-
----
-
-## Summary
-
-The repository values **predictable async systems**, **simple composition**, and **directness**.
-When in doubt: *prefer fewer abstractions, smaller modules, and visible data flow.*
+## Configuration & Operational Notes
+- User-facing settings live in `~/.code-context/settings.json`; each collection hash resides under `~/.code-context/configs/`. Respect these paths when documenting workflows.
+- Never edit secrets in-source. Reference them via `AppSettings` environment overrides or `.env` per pydantic settings behavior.
