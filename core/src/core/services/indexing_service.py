@@ -7,7 +7,7 @@ from loguru import logger
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from core.graph import GraphBuilder
+from core.graph import GraphEdgeBuilder
 from core.splitters import CodeChunk, Splitter
 from core.sync import FileSynchronizer
 
@@ -55,7 +55,7 @@ class IndexingService:
         self.doc_service = doc_service
         self.explainer = explainer
         self.graph_service = graph_service
-        self._graph_builder = GraphBuilder()
+        self._graph_builder = GraphEdgeBuilder()
 
     async def delete(self, codebase_path: Path) -> None:
         codebase_path = codebase_path.expanduser().absolute().resolve()
@@ -100,9 +100,6 @@ class IndexingService:
         logger.debug("Starting indexing for codebase: {}", codebase_path)
 
         collection_name = get_collection_name(codebase_path)
-        collection_existed_before = await self.client.collection_exists(
-            collection_name
-        )
 
         await self._prepare_collection(
             codebase_path,
@@ -119,7 +116,6 @@ class IndexingService:
 
         await self._delete_file_chunks(collection_name, results.to_remove)
         chunks = await self._get_chunks(codebase_path, results.to_add, self.splitter)
-        graph_ready_chunks: list[CodeChunk] = []
         for chunk_batch in itertools.batched(chunks, ITER_BATCH_SIZE):
             batch_list = list(chunk_batch)
             if not batch_list:
@@ -135,17 +131,9 @@ class IndexingService:
                     [c.doc or "unknown" for c in batch_list]
                 )
 
-            graph_ready_chunks.extend(batch_list)
-
             points = await self._get_points(batch_list, code_embeddings, doc_embeddings)
 
             await self.client.upsert(collection_name, points)
-
-        await self._sync_graph(
-            collection_name=collection_name,
-            indexed_chunks=graph_ready_chunks,
-            is_initial_graph_build=(not collection_existed_before) or force_reindex,
-        )
 
     async def _augment_with_explanations(
         self, chunks: list[CodeChunk]
@@ -309,107 +297,3 @@ class IndexingService:
             )
 
             await self.client.delete(collection_name, filter_condition)
-
-    async def _sync_graph(
-        self,
-        collection_name: str,
-        indexed_chunks: list[CodeChunk],
-        is_initial_graph_build: bool,
-    ) -> None:
-        if self.graph_service is None:
-            return
-
-        try:
-            if is_initial_graph_build:
-                chunks = indexed_chunks
-            else:
-                chunks = await self._load_chunks_from_collection(collection_name)
-                await self.graph_service.delete_graph(collection_name)
-
-            if not chunks:
-                logger.debug(
-                    "Graph sync skipped for {} (no chunks available)",
-                    collection_name,
-                )
-                return
-
-            nodes = self._graph_nodes_from_chunks(chunks)
-            edges = self._graph_builder.build(chunks)
-
-            await self.graph_service.add_nodes(collection_name, nodes)
-            if edges:
-                await self.graph_service.add_edges(collection_name, edges)
-
-            logger.debug(
-                "Graph sync complete for {} ({} nodes, {} edges, {} build)",
-                collection_name,
-                len(nodes),
-                len(edges),
-                "initial" if is_initial_graph_build else "rebuild",
-            )
-        except Exception as exc:
-            logger.warning("Graph sync failed for {}: {}", collection_name, exc)
-
-    async def _load_chunks_from_collection(
-        self, collection_name: str
-    ) -> list[CodeChunk]:
-        chunks: list[CodeChunk] = []
-        offset: dict | None = None
-
-        while True:
-            records, offset = await self.client.scroll(
-                collection_name=collection_name,
-                limit=SCROLL_BATCH_SIZE,
-                offset=offset,
-                with_payload=True,
-                with_vectors=False,
-            )
-
-            for record in records:
-                chunk = self._chunk_from_point(record)
-                if chunk is not None:
-                    chunks.append(chunk)
-
-            if offset is None:
-                break
-
-        return chunks
-
-    def _chunk_from_point(self, record: models.Record) -> CodeChunk | None:
-        payload = record.payload or {}
-        relative_path = payload.get("relative_path")
-        content = payload.get("content")
-
-        if not relative_path or content is None:
-            return None
-
-        start_line = int(payload.get("start_line") or 0)
-        end_line = int(payload.get("end_line") or start_line)
-        doc_value = payload.get("doc")
-        doc = str(doc_value) if doc_value is not None else None
-
-        return CodeChunk(
-            id=str(record.id),
-            content=str(content),
-            start_line=start_line,
-            end_line=end_line,
-            language=payload.get("language", "unknown"),
-            file_path=Path(str(relative_path)),
-            doc=doc,
-            node=None,
-            parent_chunk_id=None,
-        )
-
-    def _graph_nodes_from_chunks(self, chunks: list[CodeChunk]) -> list[GraphNode]:
-        return [
-            GraphNode(
-                id=chunk.id,
-                content=chunk.content,
-                relative_path=str(chunk.file_path),
-                start_line=chunk.start_line,
-                end_line=chunk.end_line,
-                language=str(chunk.language),
-                doc=chunk.doc,
-            )
-            for chunk in chunks
-        ]

@@ -4,7 +4,7 @@ from timeit import default_timer as timer
 
 from pyvis.network import Network
 
-from core.graph import GraphBuilder, GraphEdge
+from core.graph import GraphEdge, GraphEdgeBuilder
 from core.graph.types import GraphEdgeType
 from core.splitters import CodeChunk, TreeSitterSplitter
 from core.sync.scanner import scan_and_hash_all
@@ -37,7 +37,7 @@ async def get_data(
     end = timer()
     print(len(chunks), end - start)
 
-    builder = GraphBuilder(
+    builder = GraphEdgeBuilder(
         include_intra_file_refs=include_same_file_refs, include_parents=include_parents
     )
     start = timer()

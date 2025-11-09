@@ -1,4 +1,8 @@
-from .builder import GraphBuilder
-from .types import GraphEdge, GraphEdgeType
+from .builder import GraphEdgeBuilder
+from .builders import GraphEdge, GraphEdgeType
 
-__all__ = ["GraphBuilder", "GraphEdge", "GraphEdgeType"]
+__all__ = [
+    "GraphEdgeBuilder",
+    "GraphEdge",
+    "GraphEdgeType",
+]

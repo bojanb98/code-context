@@ -26,6 +26,9 @@ class SearchResult:
 
 
 class SearchService:
+
+    _DEFAULT_GRAPH_LIMIT = 30
+
     def __init__(
         self,
         client: AsyncQdrantClient,
@@ -109,6 +112,7 @@ class SearchService:
         top_k: int = 5,
         threshold: float = 0.5,
         max_graph_hops: int | None = None,
+        graph_limit: int | None = None,
     ) -> list[SearchResult]:
         """Search indexed code semantically.
 
@@ -119,6 +123,7 @@ class SearchService:
             top_k: Number of results to return (1-50)
             threshold: Similarity threshold (0.0-1.0)
             max_graph_hops: Optional graph expansion depth (>=1) to augment results
+            graph_limit: Optional limit for number of graph nodes (defaults to 30)
 
         Returns:
             List of search results
@@ -164,7 +169,7 @@ class SearchService:
             collection_name,
             results,
             point_ids,
-            top_k * 2,
+            graph_limit or self._DEFAULT_GRAPH_LIMIT,
             max_graph_hops,
         )
 

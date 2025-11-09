@@ -31,4 +31,4 @@ def make_chunk_id_from_components(
             identifier,
         )
     )
-    return xxhash.xxh3_128(payload.encode("utf-8")).hexdigest()
+    return xxhash.xxh3_128_hexdigest(payload.encode("utf-8"))
