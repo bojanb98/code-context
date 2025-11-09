@@ -10,6 +10,7 @@ from core import (
     SearchService,
     TreeSitterSplitter,
 )
+from core.sync import LocalFileContentReader, SnapshotFileStateRepository
 from loguru import logger
 from qdrant_client import AsyncQdrantClient
 
@@ -47,21 +48,6 @@ class ServiceFactory:
                 enqueue=True,
             )
             logger.debug("Service factory initialized with debug logging")
-
-    async def close(self) -> None:
-        """Clean up all resources."""
-        if self._client:
-            await self._client.close()
-
-        self._client = None
-        self._code_embedding_service = None
-        self._explainer_service = None
-        self._synchronizer = None
-        self._splitter = None
-        self._indexing_service = None
-        self._search_service = None
-        self._graph_service = None
-        self._initialized = False
 
     def get_client(self) -> AsyncQdrantClient:
         if not self._client:
@@ -110,7 +96,11 @@ class ServiceFactory:
 
     def get_synchronizer(self) -> FileSynchronizer:
         if not self._synchronizer:
-            self._synchronizer = FileSynchronizer(self.settings.storage.snapshots_dir)
+            self._synchronizer = FileSynchronizer(
+                file_state_repository=SnapshotFileStateRepository(
+                    self.settings.storage.snapshots_dir
+                )
+            )
         return self._synchronizer
 
     def get_splitter(self) -> TreeSitterSplitter:
@@ -132,6 +122,7 @@ class ServiceFactory:
                 self.get_doc_embedding_service(),
                 self.get_explainer_service(),
                 self.get_graph_service(),
+                LocalFileContentReader(),
             )
         return self._indexing_service
 

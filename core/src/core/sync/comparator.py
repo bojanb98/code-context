@@ -1,18 +1,17 @@
 from pathlib import Path
 
-from .scanner import _file_hash
-from .types import DetectedChanges, FileRecord
+from .content_readers import FileContentReader
+from .hash_utils import hash_file
+from .state import FileRecord
+from .types import DetectedChanges
 
 
 async def compare_snapshot_to_current(
     root: Path,
     old_files: dict[str, FileRecord],
     current_meta: dict[str, tuple[int, float, int | None]],
+    content_reader: FileContentReader,
 ) -> DetectedChanges:
-    """Compare old snapshot vs current metadata. Conservative: never miss a modification.
-
-    Returns DetectedChanges with lists of relative paths.
-    """
     old_paths: set[str] = set(old_files.keys())
     new_paths: set[str] = set(current_meta.keys())
 
@@ -29,7 +28,7 @@ async def compare_snapshot_to_current(
         if old.size == size and old.mtime == mtime and old.inode == inode:
             continue
         # metadata changed; compute current hash and compare
-        curr_hash = _file_hash(root / p)
+        curr_hash = hash_file(root / p, content_reader)
         if curr_hash != old.hash:
             modified.append(p)
         # else: metadata changed but content same -> treat as unchanged
@@ -59,7 +58,7 @@ async def compare_snapshot_to_current(
             continue
         # we found a candidate; must ensure content same to avoid missing modifications
         old_rec = old_files[old_p]
-        curr_hash = _file_hash(root / new_p)
+        curr_hash = hash_file(root / new_p, content_reader)
         if curr_hash == old_rec.hash:
             to_remove_added.add(new_p)
             to_remove_removed.add(old_p)
@@ -76,7 +75,7 @@ async def compare_snapshot_to_current(
     to_remove_added = set()
     to_remove_removed = set()
     for new_p in list(added_set):
-        curr_hash = _file_hash(root / new_p)
+        curr_hash = hash_file(root / new_p, content_reader)
         old_p = removed_hashes.get(curr_hash)
         if old_p:
             to_remove_added.add(new_p)

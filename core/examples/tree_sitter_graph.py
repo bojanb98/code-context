@@ -7,13 +7,14 @@ from pyvis.network import Network
 from core.graph import GraphEdge, GraphEdgeBuilder
 from core.graph.types import GraphEdgeType
 from core.splitters import CodeChunk, TreeSitterSplitter
-from core.sync.scanner import scan_and_hash_all
+from core.sync.file_listing import LocalFileLister
 from core.sync.util import DEFAULT_IGNORE_PATTERNS
 
 
 async def discover_files(root: Path) -> list[Path]:
-    records = await scan_and_hash_all(root, DEFAULT_IGNORE_PATTERNS)
-    return [root / rel for rel in sorted(records.keys())]
+    lister = LocalFileLister()
+    metadata = await lister.list_metadata(root, DEFAULT_IGNORE_PATTERNS)
+    return [root / rel for rel in sorted(metadata.keys())]
 
 
 async def chunk_files(root: Path, splitter: TreeSitterSplitter) -> list[CodeChunk]:

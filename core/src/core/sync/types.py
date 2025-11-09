@@ -1,31 +1,6 @@
 from dataclasses import dataclass, field
 
 
-@dataclass(slots=True)
-class FileRecord:
-    size: int
-    mtime: float
-    inode: int | None
-    hash: str
-
-    def to_dict(self) -> dict:
-        return {
-            "size": self.size,
-            "mtime": self.mtime,
-            "inode": self.inode,
-            "hash": self.hash,
-        }
-
-    @classmethod
-    def from_dict(cls, d: dict) -> "FileRecord":
-        return cls(
-            size=int(d["size"]),
-            mtime=float(d["mtime"]),
-            inode=d.get("inode"),
-            hash=str(d["hash"]),
-        )
-
-
 @dataclass
 class DetectedChanges:
     added: list[str] = field(default_factory=list)

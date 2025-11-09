@@ -9,6 +9,7 @@ from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from core.splitters import CodeChunk, Splitter
 from core.sync import FileSynchronizer
+from core.sync.content_readers import FileContentReader, LocalFileContentReader
 
 from .constants import (
     CODE_DENSE,
@@ -45,6 +46,7 @@ class IndexingService:
         doc_service: EmbeddingService | None = None,
         explainer: ExplainerService | None = None,
         graph_service: GraphService | None = None,
+        file_content_reader: FileContentReader = LocalFileContentReader(),
     ):
         self.client = client
         self.synchronizer = file_syncrhonizer
@@ -53,6 +55,7 @@ class IndexingService:
         self.doc_service = doc_service
         self.explainer = explainer
         self.graph_service = graph_service
+        self.file_content_reader = file_content_reader
 
     async def delete(self, codebase_path: Path) -> None:
         codebase_path = codebase_path.expanduser().absolute().resolve()
@@ -222,7 +225,7 @@ class IndexingService:
             file_path = codebase_path / file
             relative_path = file_path.relative_to(codebase_path)
             try:
-                content = file_path.read_text(encoding="utf-8")
+                content = self.file_content_reader.read_text(file_path)
                 chunks = await splitter.split(content, relative_path)
                 all_chunks.extend(chunks)
             except Exception as e:
