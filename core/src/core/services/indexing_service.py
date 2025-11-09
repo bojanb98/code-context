@@ -7,7 +7,6 @@ from loguru import logger
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from core.graph import GraphEdgeBuilder
 from core.splitters import CodeChunk, Splitter
 from core.sync import FileSynchronizer
 
@@ -22,7 +21,6 @@ from .utils import (
     Embedding,
     EmbeddingService,
     ExplainerService,
-    GraphNode,
     GraphService,
     get_collection_name,
 )
@@ -55,7 +53,6 @@ class IndexingService:
         self.doc_service = doc_service
         self.explainer = explainer
         self.graph_service = graph_service
-        self._graph_builder = GraphEdgeBuilder()
 
     async def delete(self, codebase_path: Path) -> None:
         codebase_path = codebase_path.expanduser().absolute().resolve()

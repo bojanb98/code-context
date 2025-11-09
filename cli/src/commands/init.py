@@ -89,11 +89,12 @@ async def init_command() -> None:
             "Explainer model", default=config.explainer.model
         )
 
-    use_graph = Confirm.ask(
-        "Enable graph search? (requires FalkorDB running locally or remotely)",
-        default=False,
-    )
-    config.features.graph = use_graph
+    # use_graph = Confirm.ask(
+    #     "Enable graph search? (requires FalkorDB running locally or remotely)",
+    #     default=False,
+    # )
+    use_graph = False
+    config.features.graph = True
     if use_graph:
         print("\n[bold]Graph Service[/bold]")
         config.graph.host = Prompt.ask("FalkorDB host", default=config.graph.host)

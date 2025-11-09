@@ -11,6 +11,7 @@ from .splitters import TreeSitterSplitter
 from .sync import FileSynchronizer
 
 __all__ = [
+    "GraphService",
     "IndexingService",
     "ExplainerService",
     "EmbeddingService",

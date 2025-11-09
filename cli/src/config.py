@@ -112,7 +112,7 @@ class GraphConfig(BaseModel):
         le=65535,
     )
     username: str | None = Field(
-        default=None,
+        default="falkordb",
         description="FalkorDB username",
     )
     password: str | None = Field(

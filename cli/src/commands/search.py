@@ -57,7 +57,6 @@ async def search_command(
     limit: int = 5,
     output: OutputType = "simple",
     threshold: float = 0.0,
-    max_graph_hops: int | None = None,
 ) -> None:
     """Search indexed code semantically.
 
@@ -85,17 +84,11 @@ async def search_command(
 
     search_service = services.get_search_service()
 
-    graph_hops = max_graph_hops
-    if graph_hops is not None and not settings.features.graph:
-        print("Graph search is disabled in configuration; ignoring --max-graph-hops.")
-        graph_hops = None
-
     results = await search_service.search(
         path,
         query,
         top_k=limit,
         threshold=threshold,
-        max_graph_hops=graph_hops,
     )
 
     print_results(results, output)
