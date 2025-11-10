@@ -18,16 +18,16 @@ services:
       - ollama_models:/root/.ollama
     restart: unless-stopped
 
-  falkordb:
-    image: falkordb/falkordb
-    container_name: falkordb
-    ports:
-      - "3000:3000"
-      - "6379:6379"
-    volumes:
-      - graph_data:/var/lib/falkordb/data
+  # falkordb:
+  #   image: falkordb/falkordb
+  #   container_name: falkordb
+  #   ports:
+  #     - "3000:3000"
+  #     - "6379:6379"
+  #   volumes:
+  #     - graph_data:/var/lib/falkordb/data
 
 volumes:
   qdrant_data:
   ollama_models:
-  graph_data:
+  # graph_data:
